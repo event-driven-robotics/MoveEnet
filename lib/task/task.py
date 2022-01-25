@@ -3,6 +3,8 @@
 https://github.com/fire717
 """
 import gc
+import horovod.torch as hvd
+import math
 import os
 import torch
 import numpy as np
@@ -19,7 +21,23 @@ from lib.utils.utils import printDash
 from lib.utils.metrics import myAcc
 
 
-class Task():
+# Horovod: average metrics from distributed training.
+class Metric:
+    def __init__(self, name):
+        self.name = name
+        self.sum = torch.tensor(0.)
+        self.n = torch.tensor(0.)
+
+    def update(self, val):
+        self.sum += hvd.allreduce(val.detach().cpu(), name=self.name)
+        self.n += 1
+
+    @property
+    def avg(self):
+        return self.sum / self.n
+
+
+class Task:
     def __init__(self, cfg, model):
 
         self.cfg = cfg
@@ -29,7 +47,16 @@ class Task():
         # else:
         #     self.device = torch.device("cpu")
 
-        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")  # edit for Franklin
+        # By default, Adasum doesn't need scaling up learning rate.
+        # For sum/average with gradient Accumulation: scale learning rate by batches_per_allreduce
+        lr_scaler = cfg['batches_per_allreduce'] * hvd.size() if not cfg['use_adasum'] else 1
+
+        if cfg['cuda']:
+            self.device = torch.device('cuda')
+            # if using GPU Adasum allreduce, scale learning rate by local_size.
+            if cfg['use_adasum'] and hvd.nccl_built():
+                lr_scaler = cfg['batches_per_allreduce'] * hvd.local_size()
+        # self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")  # edit for Franklin
         self.model = model.to(self.device)
 
         ############################################################
@@ -39,8 +66,18 @@ class Task():
         # optimizer
         self.optimizer = getOptimizer(self.cfg['optimizer'],
                                       self.model,
-                                      self.cfg['learning_rate'],
+                                      self.cfg['learning_rate'] * lr_scaler,  # horovod: scale learning rate by lr_scaler
                                       self.cfg['weight_decay'])
+
+        # horovod: wrap optimizer with DistributedOptimizer
+        self.optimizer = hvd.DistributedOptimizer(self.optimizer,
+                                                  named_parameters=model.named_parameters(),
+                                                  compression=False,
+                                                  op=hvd.Adasum if cfg['use_adasum'] else hvd.Average,
+                                                  gradient_predivide_factor=cfg['gradient_predivide_factor'])
+
+        # Horovod: broadcast optimizer state
+        hvd.broadcast_optimizer_state(self.optimizer, root_rank=0)
 
         # scheduler
         self.scheduler = getSchedu(self.cfg['scheduler'], self.optimizer)
@@ -48,15 +85,23 @@ class Task():
         # tensorboard
         self.tb = SummaryWriter(comment="__Dataset="+self.cfg['optimizer']+"_LR="+str(self.cfg['learning_rate'])+"_optimizer="+self.cfg['optimizer'])
 
-    def train(self, train_loader, val_loader):
+    def train(self, train_loader, train_sampler, val_loader, val_sampler):
 
-        if self.init_epoch == 0:
+        if hvd.rank() == 0 and self.init_epoch == 0:
             dummy_input1 = torch.randn(1, 3, 192, 192).cuda()
             self.tb.add_graph(self.model, dummy_input1)
         print()
 
-        for epoch in range(self.init_epoch,self.init_epoch+self.cfg['epochs']):
+        for epoch in range(self.init_epoch, self.init_epoch + self.cfg['epochs']):
+
+            # must call sampler.set_epoch method in order for the shuffle to work in distributed mode. See
+            # https://github.com/pytorch/pytorch/issues/31771 and
+            # https://pytorch.org/docs/stable/data.html#torch.utils.data.distributed.DistributedSampler
+
+            train_sampler.set_epoch(epoch)
             self.onTrainStep(train_loader, epoch)
+
+            val_sampler.set_epoch(epoch)
             self.onValidation(val_loader, epoch)
 
         self.onTrainEnd()
@@ -297,12 +342,21 @@ class Task():
         correct = 0
         count = 0
 
-        heatmap_loss_sum = bone_loss_sum = center_loss_sum = regs_loss_sum = offset_loss_sum = 0
+        heatmap_loss_epoch = Metric('heatmap_loss')
+        bone_loss_epoch = Metric('bone_loss')
+        center_loss_epoch = Metric('center_loss')
+        regs_loss_epoch = Metric('regs_loss')
+        offset_loss_epoch = Metric('offset_loss')
+        total_loss_epoch = Metric('total_loss')
 
         right_count = np.array([0] * self.cfg['num_classes'], dtype=np.int64)
         total_count = 0
 
         for batch_idx, (imgs, labels, kps_mask, img_names) in enumerate(train_loader):
+
+            # TODO: !!!!!!!!!!!!!!!!!!!!!!
+            # TODO: adjust learning rate!!!!!!!!!!!
+            # TODO: !!!!!!!!!!!!!!!!!!!!!!
 
             # if '000000242610_0' not in img_names[0]:
             #     continue
@@ -310,31 +364,49 @@ class Task():
             labels = labels.to(self.device)
             imgs = imgs.to(self.device)
             kps_mask = kps_mask.to(self.device)
+            # output = torch.zeros_like(labels)
+            output = []
 
-            output = self.model(imgs)
+            self.optimizer.zero_grad()
 
-            heatmap_loss, bone_loss, center_loss, regs_loss, offset_loss = self.loss_func(output, labels, kps_mask,
-                                                                                          self.cfg['num_classes'])
+            # Split data into sub-batches of size batch_size
+            for i in range(0, len(imgs), self.cfg['batch_size']):
+                imgs_batch = imgs[i:i + self.cfg['batch_size']]
+                labels_batch = labels[i:i + self.cfg['batch_size']]
+                kps_mask_batch = kps_mask[i:i + self.cfg['batch_size']]
 
-            total_loss = heatmap_loss + center_loss + regs_loss + offset_loss + bone_loss
+                output_batch = self.model(imgs_batch)
 
-            heatmap_loss_sum += heatmap_loss
-            bone_loss_sum += bone_loss
-            center_loss_sum += center_loss
-            regs_loss_sum += regs_loss
-            offset_loss_sum += offset_loss
+                # output[i:i + self.cfg['batch_size']] = output_batch
+                output.extend(output_batch)
 
-            if self.cfg['clip_gradient']:
-                clipGradient(self.optimizer, self.cfg['clip_gradient'])
+                heatmap_loss_subbatch, bone_loss_subbatch, center_loss_subbatch, regs_loss_subbatch, offset_loss_subbatch = self.loss_func(output_batch,
+                                                                                              labels_batch,
+                                                                                              kps_mask_batch,
+                                                                                              self.cfg['num_classes'])
 
-            self.optimizer.zero_grad()  # 把梯度置零
-            total_loss.backward()  # 计算梯度
-            self.optimizer.step()  # 更新参数
+                total_loss_subbatch = heatmap_loss_subbatch + center_loss_subbatch + regs_loss_subbatch + offset_loss_subbatch + bone_loss_subbatch
+
+                heatmap_loss_epoch.update(heatmap_loss_subbatch)
+                bone_loss_epoch.update(bone_loss_subbatch)
+                center_loss_epoch.update(center_loss_subbatch)
+                regs_loss_epoch.update(regs_loss_subbatch)
+                offset_loss_epoch.update(offset_loss_subbatch)
+                total_loss_epoch.update(total_loss_subbatch)
+
+                if self.cfg['clip_gradient']:
+                    clipGradient(self.optimizer, self.cfg['clip_gradient'])
+
+                # Average gradients among sub-batches
+                total_loss_subbatch.div_(math.ceil(float(len(imgs)) / self.cfg['batch_size']))
+
+                total_loss_subbatch.backward()
+
+            self.optimizer.step()
 
             ### evaluate
 
             pre = movenetDecode(output, kps_mask, mode='output', num_joints=self.cfg["num_classes"])
-
             gt = movenetDecode(labels, kps_mask, mode='label', num_joints=self.cfg["num_classes"])
 
             # hm = cv2.resize(np.sum(labels[0,:7,:,:].cpu().detach().numpy(),axis=0),(192,192))*255
@@ -346,7 +418,8 @@ class Task():
             right_count += acc
             total_count += labels.shape[0]
 
-            if batch_idx % self.cfg['log_interval'] == 0:
+            # print only if first worker
+            if batch_idx % self.cfg['log_interval'] == 0 and hvd.rank() == 0:
                 print('\r',
                       '%d/%d '
                       '[%d/%d] '
@@ -358,32 +431,31 @@ class Task():
                       'o_loss: %.3f) - '
                       'acc: %.4f         ' % (epoch + 1, self.cfg['epochs'],
                                               batch_idx, len(train_loader.dataset) / self.cfg['batch_size'],
-                                              total_loss.item(),
-                                              heatmap_loss.item(),
-                                              bone_loss.item(),
-                                              center_loss.item(),
-                                              regs_loss.item(),
-                                              offset_loss.item(),
+                                              total_loss_epoch.avg,
+                                              heatmap_loss_epoch.avg,
+                                              bone_loss_epoch.avg,
+                                              center_loss_epoch.avg,
+                                              regs_loss_epoch.avg,
+                                              offset_loss_epoch.avg,
                                               np.mean(right_count / total_count)),
                       end='', flush=True)
-            # break
-        total_loss_sum = heatmap_loss_sum + center_loss_sum + regs_loss_sum + offset_loss_sum + bone_loss_sum
 
-        # Tensorboard additions
-        self.add_to_tb(heatmap_loss_sum, bone_loss_sum, center_loss_sum, regs_loss_sum, offset_loss_sum,
-                       total_loss_sum, np.mean(right_count / total_count), epoch + 1, label="Train")
+        self.add_to_tb(heatmap_loss_epoch.avg, bone_loss_epoch.avg, center_loss_epoch.avg, regs_loss_epoch.avg, offset_loss_epoch.avg,
+                       total_loss_epoch.avg, np.mean(right_count / total_count), epoch + 1, label="Train")
 
     def onTrainEnd(self):
         del self.model
         gc.collect()
         torch.cuda.empty_cache()
-        self.tb.flush()
-        self.tb.close()
 
-        if self.cfg["cfg_verbose"]:
-            printDash()
-            print(self.cfg)
-            printDash()
+        if hvd.rank() == 0:
+            self.tb.flush()
+            self.tb.close()
+
+            if self.cfg["cfg_verbose"]:
+                printDash()
+                print(self.cfg)
+                printDash()
 
     def onValidation(self, val_loader, epoch):
 
@@ -427,24 +499,25 @@ class Task():
 
                 # break
 
-            print('LR: %f - '
-                  ' [Val] loss: %.5f '
-                  '[hm_loss: %.4f '
-                  'b_loss: %.4f '
-                  'c_loss: %.4f '
-                  'r_loss: %.4f '
-                  'o_loss: %.4f] - '
-                  'acc: %.4f          ' % (
-                      self.optimizer.param_groups[0]["lr"],
-                      total_loss.item(),
-                      heatmap_loss.item(),
-                      bone_loss.item(),
-                      center_loss.item(),
-                      regs_loss.item(),
-                      offset_loss.item(),
-                      np.mean(right_count / total_count)),
-                  )
-            print()
+            if hvd.rank() == 0:
+                print('LR: %f - '
+                      ' [Val] loss: %.5f '
+                      '[hm_loss: %.4f '
+                      'b_loss: %.4f '
+                      'c_loss: %.4f '
+                      'r_loss: %.4f '
+                      'o_loss: %.4f] - '
+                      'acc: %.4f          ' % (
+                          self.optimizer.param_groups[0]["lr"],
+                          total_loss.item(),
+                          heatmap_loss.item(),
+                          bone_loss.item(),
+                          center_loss.item(),
+                          regs_loss.item(),
+                          offset_loss.item(),
+                          np.mean(right_count / total_count)),
+                      )
+                print()
 
         total_loss_sum = heatmap_loss_sum + center_loss_sum + regs_loss_sum + offset_loss_sum + bone_loss_sum
 
@@ -489,13 +562,25 @@ class Task():
                 str1 = ''
             init_epoch = int(str1.join(os.path.basename(model_path).split('_')[0][1:]))
             self.init_epoch = init_epoch + 1
+
+            # horovod: broadcast init_epoch from rank 0 (which will have checkpoints) to other ranks
+            self.init_epoch = hvd.broadcast(torch.tensor(self.init_epoch), root_rank=0, name='self.init_epoch').item()
+
             print(model_path)
-        self.model.load_state_dict(torch.load(model_path))
+        if hvd.rank() == 0:
+            self.model.load_state_dict(torch.load(model_path))
 
         if data_parallel:
             self.model = torch.nn.DataParallel(self.model)
 
+        # Horovod: broadcast model's parameters
+        hvd.broadcast_parameters(self.model.state_dict(), root_rank=0)
+
     def modelSave(self, save_name):
+
+        if not hvd.rank() == 0:
+            return
+
         fullname = os.path.join(self.cfg['save_dir'], save_name)
         torch.save(self.model.state_dict(), fullname)
         with open(Path(self.cfg['newest_ckpt']).resolve(), 'w') as f:
@@ -504,6 +589,9 @@ class Task():
 
     def add_to_tb(self, heatmap_loss, bone_loss, center_loss, regs_loss, offset_loss, total_loss, acc, epoch,
                   label=None):
+
+        if not hvd.rank() == 0:
+            return
 
         if label is not None and label[-1] != " ":
             label = label + " "

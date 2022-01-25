@@ -1,10 +1,16 @@
+
+import horovod.torch as hvd
+import json
+
+from pathlib import Path
+
 from config import cfg
 from lib import MoveNet, Task
-from pathlib import Path
-import json
+
 
 def main(cfg):
 
+    hvd.init()
 
     if cfg["num_classes"] == 17:
         fullname = 'mbv2_e105_valacc0.80255.pth'

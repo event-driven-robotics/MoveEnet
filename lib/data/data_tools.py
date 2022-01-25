@@ -2,19 +2,22 @@
 @Fire
 https://github.com/fire717
 """
-from PIL import Image
-import numpy as np
-import pandas as pd
-import os
-import torch
-from torch.utils.data.dataset import Dataset
 
-import random
-import cv2
 import albumentations as A
+import cv2
+import horovod.torch as hvd
 import json
-import platform
 import math
+import numpy as np
+import os
+import pandas as pd
+import platform
+import random
+import torch
+import torch.multiprocessing as mp
+
+from PIL import Image
+from torch.utils.data.dataset import Dataset
 
 from lib.data.data_augment import DataAug
 from lib.utils.utils import maxPoint, extract_keypoints
@@ -473,31 +476,48 @@ class TensorDatasetTest(Dataset):
 
 ###### get data loader
 def getDataLoader(mode, input_data, cfg):
-    if mode == "trainval":
-        train_loader = torch.utils.data.DataLoader(
-            TensorDataset(input_data[0],
-                          cfg['img_path'],
-                          cfg['img_size'],
-                          DataAug(cfg['img_size']),
-                          num_classes=cfg['num_classes']
-                          ),
-            batch_size=cfg['batch_size'],
-            shuffle=True,
-            num_workers=cfg['num_workers'],
-            pin_memory=cfg['pin_memory'])
 
+    kwargs = {'num_workers': 4, 'pin_memory': True} if cfg['cuda'] else {}
+    # When supported, use 'forkserver' to spawn dataloader workers instead of 'fork' to prevent
+    # issues with Infiniband implementations that are not fork-safe
+    if (kwargs.get('num_workers', 0) > 0 and hasattr(mp, '_supports_context') and
+            mp._supports_context and 'forkserver' in mp.get_all_start_methods()):
+        kwargs['multiprocessing_context'] = 'forkserver'
+
+    if mode == "trainval":
+        train_dataset = TensorDataset(input_data[0],
+                                      cfg['img_path'],
+                                      cfg['img_size'],
+                                      DataAug(cfg['img_size']),
+                                      num_classes=cfg['num_classes'])
+        # Horovod: use DistributedSampler to partition the training data.
+        train_sampler = torch.utils.data.distributed.DistributedSampler(
+            train_dataset, num_replicas=hvd.size(), rank=hvd.rank(), shuffle=True)
+        train_loader = torch.utils.data.DataLoader(
+            train_dataset,
+            sampler=train_sampler,
+            batch_size=cfg['batch_size'] * cfg['batches_per_allreduce'],
+            shuffle=False,  # if a DistributedSampler is used, shuffle cannot be set to True in the DataLoader
+            **kwargs)
+
+        val_dataset = TensorDataset(input_data[1],
+                                    cfg['img_path'],
+                                    cfg['img_size'],
+                                    num_classes=cfg['num_classes'])
+        val_sampler = torch.utils.data.distributed.DistributedSampler(
+            val_dataset, num_replicas=hvd.size(), rank=hvd.rank())
         val_loader = torch.utils.data.DataLoader(
-            TensorDataset(input_data[1],
-                          cfg['img_path'],
-                          cfg['img_size'],
-                          num_classes=cfg['num_classes']
-                          ),
+            val_dataset,
+            sampler=val_sampler,
             batch_size=cfg['batch_size'],
             shuffle=False,
-            num_workers=cfg['num_workers'],
-            pin_memory=cfg['pin_memory'])
+            **kwargs)
 
-        return train_loader, val_loader
+        # need to return the samplers because, in order for the shuffle to work in distributed mode, the set_epoch
+        # method of the sampler must be called before creating the iterator of the DataLoader (which happens outside
+        # of this function). See https://github.com/pytorch/pytorch/issues/31771 and
+        # https://pytorch.org/docs/stable/data.html#torch.utils.data.distributed.DistributedSampler
+        return train_loader, train_sampler, val_loader, val_sampler
 
     elif mode == "val":
 
@@ -542,7 +562,6 @@ def getDataLoader(mode, input_data, cfg):
             pin_memory=False)
 
         return data_loader
-
 
     else:
         raise Exception("Unknown mode.")

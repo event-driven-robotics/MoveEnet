@@ -2,16 +2,17 @@
 @Fire
 https://github.com/fire717
 """
-home = "/media/ggoyal/Data/data/coco/"
+data_dir = '/workspace/data/mpii/'
+project_dir = '/workspace/projects/movenet/'
 
 cfg = {
     ##### Global Setting
-    'GPU_ID': '0',
-    "num_workers": 4,
+    "cuda": True,
+    "num_workers": 0,
     "random_seed": 42,
     "cfg_verbose": True,
 
-    "save_dir": home + "output/",
+    "save_dir": project_dir + "output/",
     "num_classes": 13,
     "width_mult": 1.0,
     "img_size": 192,
@@ -19,9 +20,11 @@ cfg = {
     ##### Train Setting
     'pre-separated_data': True,
     'training_data_split': 80,
-    'img_path': home + "cropped/imgs",
-    'train_label_path': home + 'cropped/train2017.json', #add the singular json file here.
-    'val_label_path': home + '/cropped/val2017.json',
+    'img_path': data_dir + "tos_synthetic_export/",
+    # 'train_label_path': data_dir + 'train.json',
+    # 'val_label_path': data_dir + 'val.json',
+    'train_label_path': data_dir + 'mpii_hvd_test.json',
+    'val_label_path': data_dir + 'mpii_hvd_test.json',
 
     'balance_data': False,
 
@@ -29,11 +32,19 @@ cfg = {
     'save_best_only': True,
 
     'pin_memory': True,
+    'newest_ckpt': project_dir + 'output/newest.json',
+
+    ##### Horovod Hyperparameters
+    'use_adasum': False,
+    'gradient_predivide_factor': 1.0,  # gradient predivide factor to be applied in optimizer
 
     ##### Train Hyperparameters
     'learning_rate': 0.001,  # 1.25e-4
-    'batch_size': 64,
-    'epochs': 110,
+    # 'batch_size': 32,
+    'batch_size': 16,
+    'batches_per_allreduce': 1,  # number of batches processed locally before executing allreduce across workers; it multiplies total batch size
+    # 'epochs': 150,
+    'epochs': 5,
     'optimizer': 'Adam',  # Adam  SGD
     'scheduler': 'MultiStepLR-70,100-0.1',  # default  SGDR-5-2  CVPR   step-4-0.8 MultiStepLR
     # multistepLR-<<>milestones>-<<decay multiplier>>
@@ -43,7 +54,8 @@ cfg = {
     'clip_gradient': 5,  # 1,
 
     ##### Test
-    'test_img_path': home + "/cropped/imgs",
+    'test_img_path': data_dir + "cropped/imgs",
+    'predict_output_path': project_dir + "predict/",
 
     # "../data/eval/imgs",
     # "../data/eval/imgs",
@@ -51,8 +63,8 @@ cfg = {
     # "../data/true/mypc/crop_upper1"
     # ../data/coco/small_dataset/imgs
     # "../data/testimg"
-    'exam_label_path': home + '/all/data_all_new.json',
+    'exam_label_path': data_dir + '/all/data_all_new.json',
 
-    'eval_img_path': home + '/eval/imgs',
-    'eval_label_path': home + '/eval/mypc.json',
+    'eval_img_path': data_dir + 'tos_synthetic_export/',
+    'eval_label_path': data_dir + 'annotations/val.json',
 }
