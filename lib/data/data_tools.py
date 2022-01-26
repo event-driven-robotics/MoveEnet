@@ -477,7 +477,7 @@ class TensorDatasetTest(Dataset):
 ###### get data loader
 def getDataLoader(mode, input_data, cfg):
 
-    kwargs = {'num_workers': 4, 'pin_memory': True} if cfg['cuda'] else {}
+    kwargs = {'num_workers': cfg['num_workers'], 'pin_memory': cfg['pin_memory']} if cfg['cuda'] else {}
     # When supported, use 'forkserver' to spawn dataloader workers instead of 'fork' to prevent
     # issues with Infiniband implementations that are not fork-safe
     if (kwargs.get('num_workers', 0) > 0 and hasattr(mp, '_supports_context') and
