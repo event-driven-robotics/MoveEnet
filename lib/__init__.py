@@ -30,7 +30,7 @@ def init(cfg):
         torch.cuda.device(hvd.local_rank())
 
     # horovod: limit # of CPU threads to be used per worker
-    torch.set_num_threads(4)
+    torch.set_num_threads(1)
 
     setRandomSeed(cfg['random_seed'])
 

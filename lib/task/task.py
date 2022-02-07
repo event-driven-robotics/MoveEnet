@@ -18,7 +18,7 @@ from torch.utils.tensorboard import SummaryWriter
 from lib.task.task_tools import getSchedu, getOptimizer, movenetDecode, clipGradient
 from lib.loss.movenet_loss import MovenetLoss
 from lib.utils.utils import printDash
-from lib.utils.metrics import myAcc
+from lib.utils.metrics import myAcc, pckh
 
 
 # Horovod: average metrics from distributed training.
@@ -52,10 +52,12 @@ class Task:
         lr_scaler = cfg['batches_per_allreduce'] * hvd.size() if not cfg['use_adasum'] else 1
 
         if cfg['cuda']:
-            self.device = torch.device('cuda')
+            self.device = torch.device(f'cuda:{hvd.local_rank()}')
             # if using GPU Adasum allreduce, scale learning rate by local_size.
             if cfg['use_adasum'] and hvd.nccl_built():
                 lr_scaler = cfg['batches_per_allreduce'] * hvd.local_size()
+        else:
+            self.device = torch.device('cpu')
         # self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")  # edit for Franklin
         self.model = model.to(self.device)
 
@@ -69,15 +71,16 @@ class Task:
                                       self.cfg['learning_rate'] * lr_scaler,  # horovod: scale learning rate by lr_scaler
                                       self.cfg['weight_decay'])
 
+        # horovod: broadcast parameters & optimizer state
+        hvd.broadcast_parameters(self.model.state_dict(), root_rank=0)
+        hvd.broadcast_optimizer_state(self.optimizer, root_rank=0)
+
         # horovod: wrap optimizer with DistributedOptimizer
         self.optimizer = hvd.DistributedOptimizer(self.optimizer,
                                                   named_parameters=model.named_parameters(),
-                                                  compression=False,
+                                                  compression=hvd.Compression.none,
                                                   op=hvd.Adasum if cfg['use_adasum'] else hvd.Average,
                                                   gradient_predivide_factor=cfg['gradient_predivide_factor'])
-
-        # Horovod: broadcast optimizer state
-        hvd.broadcast_optimizer_state(self.optimizer, root_rank=0)
 
         # scheduler
         self.scheduler = getSchedu(self.cfg['scheduler'], self.optimizer)
@@ -88,7 +91,7 @@ class Task:
     def train(self, train_loader, train_sampler, val_loader, val_sampler):
 
         if hvd.rank() == 0 and self.init_epoch == 0:
-            dummy_input1 = torch.randn(1, 3, 192, 192).cuda()
+            dummy_input1 = torch.randn(1, 3, self.cfg['img_size'], self.cfg['img_size']).cuda()
             self.tb.add_graph(self.model, dummy_input1)
         print()
 
@@ -148,13 +151,13 @@ class Task:
                 offsets = output[3].cpu().numpy()[0]
 
                 # print(heatmaps.shape)
-                hm = cv2.resize(np.sum(heatmaps, axis=0), (192, 192)) * 255
+                hm = cv2.resize(np.sum(heatmaps, axis=0), (self.cfg['img_size'], self.cfg['img_size'])) * 255
                 cv2.imwrite(os.path.join(save_dir, basename[:-4] + "_heatmaps.jpg"), hm)
                 img[:, :, 0] += hm
                 cv2.imwrite(os.path.join(save_dir, basename[:-4] + "_img.jpg"), img)
                 cv2.imwrite(os.path.join(save_dir, basename[:-4] + "_center.jpg"),
-                            cv2.resize(centers[0] * 255, (192, 192)))
-                cv2.imwrite(os.path.join(save_dir, basename[:-4] + "_regs0.jpg"), cv2.resize(regs[0] * 255, (192, 192)))
+                            cv2.resize(centers[0] * 255, (self.cfg['img_size'], self.cfg['img_size'])))
+                cv2.imwrite(os.path.join(save_dir, basename[:-4] + "_regs0.jpg"), cv2.resize(regs[0] * 255, (self.cfg['img_size'], self.cfg['img_size'])))
 
     def label(self, data_loader, save_dir):
         self.model.eval()
@@ -235,10 +238,10 @@ class Task:
                     basename = os.path.basename(img_name)
                     save_name = os.path.join(save_dir, basename)
 
-                    hm = cv2.resize(np.sum(output[0][0].cpu().numpy(), axis=0), (192, 192)) * 255
+                    hm = cv2.resize(np.sum(output[0][0].cpu().numpy(), axis=0), (self.cfg['img_size'], self.cfg['img_size'])) * 255
                     cv2.imwrite(os.path.join(save_dir, basename[:-4] + "_hm_pre.jpg"), hm)
 
-                    hm = cv2.resize(np.sum(labels[0, :7, :, :].cpu().numpy(), axis=0), (192, 192)) * 255
+                    hm = cv2.resize(np.sum(labels[0, :7, :, :].cpu().numpy(), axis=0), (self.cfg['img_size'], self.cfg['img_size'])) * 255
                     cv2.imwrite(os.path.join(save_dir, basename[:-4] + "_hm_gt.jpg"), hm)
 
                     img = np.transpose(imgs[0].cpu().numpy(), axes=[1, 2, 0])
@@ -467,7 +470,7 @@ class Task:
         right_count = np.array([0] * self.cfg['num_classes'], dtype=np.int64)
         total_count = 0
         with torch.no_grad():
-            for batch_idx, (imgs, labels, kps_mask, img_names) in enumerate(val_loader):
+            for batch_idx, (imgs, labels, kps_mask, img_names, head_size, head_size_scaled) in enumerate(val_loader):
                 labels = labels.to(self.device)
                 imgs = imgs.to(self.device)
                 kps_mask = kps_mask.to(self.device)
@@ -491,7 +494,8 @@ class Task:
 
                 gt = movenetDecode(labels, kps_mask, mode='label', num_joints=self.cfg["num_classes"])
 
-                acc = myAcc(pre, gt)
+                # acc = myAcc(pre, gt)
+                acc = pckh(pre, gt, head_size_scaled)  # or acc = pckh(pre, gt, head_size_scaled)
 
                 # right_count1 += acc1
                 right_count += acc
@@ -544,7 +548,7 @@ class Task:
 
                 inputs = inputs.cuda()
 
-                output = model(inputs)
+                output = self.model(inputs)
                 output = output.data.cpu().numpy()
 
                 for i in range(output.shape[0]):

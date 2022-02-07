@@ -59,25 +59,33 @@ def myAcc(output, target):
     return cate_acc
 
 
-def pckh(output, target, threshold=0.5):
+def pckh(output, target, head_sizes, threshold=0.5):
 
     if len(output.shape) == 4:
         output = heatmap2locate(output)
         target = heatmap2locate(target)
 
+    # reshape output and target to [batch_size, joints_num, 2]
+    output = output.reshape([len(output), -1, 2])
+    target = target.reshape([len(target), -1, 2])
+
     # compute PCK's threshold as percentage of head size in pixels for each pose
-    neck_base_joints = (target[:, L_SHOULDER_IND, :] + target[:, R_SHOULDER_IND, :]) / 2
-    head_joints = target[:, HEAD_IND, :]
-    head_sizes = np.linalg.norm(head_joints - neck_base_joints, axis=2)
     thresholds_head = head_sizes * threshold
+    thresholds_head = thresholds_head.reshape([-1, 1]).tile((1, target.shape[1]))
 
     # compute euclidean distances between joints
     distances = np.linalg.norm(output - target, axis=2)
 
     # compute correct keypoints
-    correct_keypoints = (distances <= thresholds_head).astype(int)
+    correct_keypoints = (distances <= np.array(thresholds_head)).astype(int)
+
+    # remove not annotated keypoints from pck computation
+    correct_keypoints = correct_keypoints * (target[:, :, 0] != -1).astype(int)
+    annotated_keypoints_num = np.sum((target[:, :, 0] != -1).astype(int), axis=0)
 
     # compute pck
-    pck = np.sum(correct_keypoints, axis=0) / correct_keypoints.shape[0]
+    # pckh_joints = np.sum(correct_keypoints, axis=0) / correct_keypoints.shape[0]
+    pck_joints = np.sum(correct_keypoints, axis=0) / annotated_keypoints_num
+    pck_avg = np.mean(pck_joints)
 
-    return pck
+    return pck_joints, pck_avg

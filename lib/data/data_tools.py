@@ -331,6 +331,8 @@ class TensorDataset(Dataset):
         """
         item = {
                      "img_name":save_name,
+                     "head_size":head_size,
+                     "head_size_scaled":head_size_scaled,
                      "keypoints":save_keypoints,
                      "center":save_center,
                      "other_centers":other_centers,
@@ -358,6 +360,8 @@ class TensorDataset(Dataset):
         img = img.astype(np.float32)
         img = np.transpose(img, axes=[2, 0, 1])
 
+        head_size = item.get("head_size", None)
+        head_size_scaled = item.get("head_size_scaled", None)
         keypoints = item["keypoints"]
         center = item['center']
         other_centers = item["other_centers"]
@@ -440,7 +444,10 @@ class TensorDataset(Dataset):
         # print("labels: " + str(labels.shape))
         # print(heatmaps.shape,centers.shape,regs.shape,offsets.shape,labels.shape)
         # print(labels.shape)
-        return img, labels, kps_mask, img_path
+        if head_size is None or head_size_scaled is None:
+            return img, labels, kps_mask, img_path
+        else:
+            return img, labels, kps_mask, img_path, head_size, head_size_scaled
 
     def __len__(self):
         return len(self.data_labels)
