@@ -13,7 +13,7 @@ def main(cfg):
 
     for i in range(10):
         cfg['label'] = 'hypertune_'+str(i)
-        cfg['newest_ckpt'] = os.path.join(cfg['save_dir'],cfg['label'],'newest.json')
+        cfg['ckpt'] = os.path.join(cfg['save_dir'],cfg['label'],'newest.json')
         #  Hyper parameter tuning for variables:
         cfg['batch_size'] = random.choice([32,64,128])
         cfg['learning_rate'] = random.choice([0.001,0.005,0.01,0.05,0.1])

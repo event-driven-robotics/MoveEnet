@@ -27,11 +27,6 @@ class Task():
 
         self.cfg = cfg
         self.init_epoch = 0
-        # if self.cfg['GPU_ID'] != '' :
-        #     self.device = torch.device("cuda")
-        # else:
-        #     self.device = torch.device("cpu")
-
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")  # edit for Franklin
         self.model = model.to(self.device)
 
@@ -753,7 +748,29 @@ class Task():
                     res_list.append(output_one)
         return res_list
 
-    def modelLoad(self, model_path, data_parallel=False):
+    def modelLoad(self, model_path=None, data_parallel=False):
+        training_mode = self.cfg['training_mode']
+        use_default = 0
+        if not os.path.exists(model_path):
+            print(f'File {model_path} does not exist.')
+            if training_mode == 'continuous':
+                print('Checking for best model')
+                if os.path.exists(os.path.join(self.cfg['save_dir'], self.cfg['label'], "best.pth")):
+                    model_path = os.path.join(self.cfg['save_dir'], self.cfg['label'], "best.pth")
+                else:
+                    print('best.pth also does not exist.')
+                    use_default = 1
+            elif training_mode == 'one_off':
+                print("Using default path.")
+                use_default = 1
+
+            if use_default:
+                if os.path.exists(self.cfg['default_ckpt']):
+                    print('Starting training from default checkpoint')
+                    model_path = self.cfg['default_ckpt']
+                else:
+                    print('Starting from scratch.')
+                    return
 
         if os.path.splitext(model_path)[-1] == '.json':
             with open(model_path, 'r') as f:
@@ -761,30 +778,41 @@ class Task():
                 str1 = ''
             init_epoch = int(str1.join(os.path.basename(model_path).split('_')[0][1:]))
             self.init_epoch = init_epoch
-        print(model_path)
+
+        if training_mode == 'one_off':
+            if self.cfg["set_epoch"]:
+                if isinstance(self.cfg["set_epoch"], int):
+                    self.init_epoch = self.cfg["set_epoch"]
+                else:
+                    print("The set_epoch variable must be an integer. Initial epoch not modified.")
+
+
+        print(f'Model {model_path} loaded.')
         self.model.load_state_dict(torch.load(model_path, map_location=self.device))
 
         if data_parallel:
             self.model = torch.nn.DataParallel(self.model)
 
     def modelSave(self, save_name, is_best=False):
-        if self.cfg['save_best_only']:
-            if is_best:
-                fullname_best = os.path.join(self.cfg['save_dir'], self.cfg['label'], "best.pth")
-                torch.save(self.model.state_dict(), fullname_best)
 
-                fullname = os.path.join(self.cfg['save_dir'], self.cfg['label'], save_name)
-                torch.save(self.model.state_dict(), fullname)
-                with open(Path(self.cfg['newest_ckpt']).resolve(), 'w') as f:
-                    json.dump(fullname, f, ensure_ascii=False)
-
+        if is_best:
+            fullname_best = os.path.join(self.cfg['save_dir'], self.cfg['label'], "best.pth")
+            torch.save(self.model.state_dict(), fullname_best)
         else:
-            fullname = os.path.join(self.cfg['save_dir'], self.cfg['label'], save_name)
-            torch.save(self.model.state_dict(), fullname)
+            if self.cfg['save_best_only']:
+                return
 
-            with open(Path(self.cfg['newest_ckpt']).resolve(), 'w') as f:
-                json.dump(fullname, f, ensure_ascii=False)
+        fullname = os.path.join(self.cfg['save_dir'], self.cfg['label'], save_name)
+        torch.save(self.model.state_dict(), fullname)
+        with open(Path(self.cfg['ckpt']).resolve(), 'w') as f:
+            json.dump(fullname, f, ensure_ascii=False)
+
         # print("Save model to: ",save_name)
+        return
+
+
+
+
 
     def add_to_tb(self, heatmap_loss, bone_loss, center_loss, regs_loss, offset_loss, total_loss, acc, epoch,
                   label=None):

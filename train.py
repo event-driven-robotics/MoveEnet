@@ -17,8 +17,7 @@ def main(cfg):
     train_loader, val_loader = data.getTrainValDataloader()
 
     run_task = Task(cfg, model)
-    if not cfg["from_scratch"]:
-        run_task.modelLoad(cfg["newest_ckpt"])
+    run_task.modelLoad(model_path=cfg["ckpt"])
     run_task.train(train_loader, val_loader)
 
 

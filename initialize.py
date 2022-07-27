@@ -10,7 +10,7 @@ def main(cfg):
 
     if cfg["num_classes"] == 17:
         fullname = 'mbv2_e105_valacc0.80255.pth'
-        with open(Path(cfg['newest_ckpt']).resolve(), 'w') as f:
+        with open(Path(cfg['ckpt']).resolve(), 'w') as f:
             json.dump(fullname, f, ensure_ascii=False)
     else:
         model = MoveNet(num_classes=cfg["num_classes"],
