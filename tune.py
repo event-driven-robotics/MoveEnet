@@ -6,6 +6,7 @@ from lib import init, Data, MoveNet, Task
 from config import cfg
 from lib.utils.utils import arg_parser,ensure_loc
 import random, os
+import json
 
 
 
@@ -16,12 +17,13 @@ def main(cfg):
         cfg['ckpt'] = os.path.join(cfg['save_dir'],cfg['label'],'newest.json')
         #  Hyper parameter tuning for variables:
         cfg['batch_size'] = random.choice([32,64,128])
-        cfg['learning_rate'] = random.choice([0.001,0.005,0.01,0.05,0.1])
+        cfg['learning_rate'] = random.choice([0.0005,0.001,0.005,0.01,0.05,0.1])
         cfg['weight_decay'] = random.choice([0.0001,0.0002,0.0005,0.001])
         cfg['scheduler'] = random.choice(['MultiStepLR-70,100-0.1', 'MultiStepLR-30,50,70,90,110-0.5','MultiStepLR-30,70,110-0.2','MultiStepLR-70,110-0.2', 'MultiStepLR-30,70,130-0.2'])
         cfg['w_reg'] = random.choice([1,3,5,10])
         cfg['w_bone'] = random.choice([5,20,40])
-
+        cfg['epochs'] = 3
+        cfg['save_best_only'] = False
         init(cfg)
         ensure_loc(os.path.join(cfg['save_dir'],cfg['label']))
         model = MoveNet(num_classes=cfg["num_classes"],
@@ -36,6 +38,8 @@ def main(cfg):
 
         run_task.train(train_loader, val_loader)
         run_task.save_results()
+        with open(f'{os.path.join(cfg["save_dir"],cfg["label"])}/cfg.txt', 'w') as convert_file:
+            convert_file.write(json.dumps(cfg))
 
 if __name__ == '__main__':
     cfg = arg_parser(cfg)
