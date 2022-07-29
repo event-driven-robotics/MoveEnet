@@ -14,7 +14,7 @@ def main(cfg):
     if os.path.exists(label_config):
         with open(label_config, 'r') as file:
             cfg_temp = json.load(file)
-    update_cfg(cfg,cfg_temp)
+        update_cfg(cfg,cfg_temp)
 
     model = MoveNet(num_classes=cfg["num_classes"],
                     width_mult=cfg["width_mult"],
