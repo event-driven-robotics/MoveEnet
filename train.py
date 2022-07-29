@@ -10,8 +10,10 @@ import os, json
 
 def main(cfg):
     init(cfg)
-    with open(f'{os.path.join(cfg["save_dir"], cfg["label"])}/cfg.txt', 'r') as file:
-        cfg_temp = json.load(file)
+    label_config = f'{os.path.join(cfg["save_dir"], cfg["label"])}/cfg.txt'
+    if os.path.exists(label_config):
+        with open(label_config, 'r') as file:
+            cfg_temp = json.load(file)
     update_cfg(cfg,cfg_temp)
 
     model = MoveNet(num_classes=cfg["num_classes"],
