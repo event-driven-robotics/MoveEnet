@@ -184,6 +184,16 @@ def extract_keypoints(heatmap):
     x, y = keypoints_with_score_and_id[0][0], keypoints_with_score_and_id[0][1]
     return x, y
 
+def update_cfg(cfg,args):
+
+    try:
+        for key, value in vars(args).items():
+            cfg[key] = value
+    except TypeError:
+        for key, value in args.items():
+            cfg[key] = value
+    return cfg
+
 def arg_parser(cfg):
     parser = argparse.ArgumentParser()
     ##### Global Setting
@@ -261,8 +271,7 @@ def arg_parser(cfg):
 
     args = parser.parse_args()
 
-    for key, value in vars(args).items():
-        cfg[key] = value
+    update_cfg(cfg,args)
 
     return cfg
 
