@@ -642,7 +642,7 @@ class Task():
         right_count = np.array([0] * self.cfg['num_classes'], dtype=np.int64)
         total_count = 0
         with torch.no_grad():
-            for batch_idx, (imgs, labels, kps_mask, img_names, torso_diameter, head_size_norm, _) in enumerate(
+            for batch_idx, (imgs, labels, kps_mask, img_names, torso_diameter, head_size_norm, _, _) in enumerate(
                     val_loader):
                 labels = labels.to(self.device)
                 imgs = imgs.to(self.device)
