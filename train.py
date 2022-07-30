@@ -15,7 +15,7 @@ def main(cfg):
         with open(label_config, 'r') as file:
             cfg_temp = json.load(file)
         update_cfg(cfg,cfg_temp)
-
+    cfg["ckpt"] = f'{cfg["save_dir"]}/{cfg["label"]}/newest.json'
     model = MoveNet(num_classes=cfg["num_classes"],
                     width_mult=cfg["width_mult"],
                     mode='train')
