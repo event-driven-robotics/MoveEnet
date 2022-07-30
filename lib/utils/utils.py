@@ -194,6 +194,16 @@ def update_cfg(cfg,args):
             cfg[key] = value
     return cfg
 
+def update_tuner_cfg(cfg,args):
+
+    keys = ['batch_size','ckpt','learning_rate','weight_decay','scheduler', 'w_reg','w_bone','save_best_only']
+    for key in keys:
+        try:
+            cfg[key] = vars(args)[key]
+        except TypeError:
+            cfg[key] = args[key]
+    return cfg
+
 def arg_parser(cfg):
     parser = argparse.ArgumentParser()
     ##### Global Setting

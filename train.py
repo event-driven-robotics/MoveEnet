@@ -4,7 +4,7 @@ https://github.com/fire717
 """
 from lib import init, Data, MoveNet, Task
 from config import cfg
-from lib.utils.utils import arg_parser, update_cfg
+from lib.utils.utils import arg_parser, update_tuner_cfg
 import os, json
 
 
@@ -14,7 +14,7 @@ def main(cfg):
     if os.path.exists(label_config):
         with open(label_config, 'r') as file:
             cfg_temp = json.load(file)
-        update_cfg(cfg,cfg_temp)
+        update_tuner_cfg(cfg,cfg_temp)
     cfg["ckpt"] = f'{cfg["save_dir"]}/{cfg["label"]}/newest.json'
     model = MoveNet(num_classes=cfg["num_classes"],
                     width_mult=cfg["width_mult"],
