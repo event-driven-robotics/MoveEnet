@@ -96,13 +96,14 @@ class Task():
                 img = np.transpose(img[0].cpu().numpy(), axes=[1, 2, 0])
                 img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
                 h, w = img.shape[:2]
-
+                img = img*3
                 cv2.imwrite(os.path.join(save_dir, basename[:-4] + "_img.jpg"), img)
 
-                for i in range(len(pre[0]) // 2):
-                    x = int(pre[0][i * 2] * w)
-                    y = int(pre[0][i * 2 + 1] * h)
-                    cv2.circle(img, (x, y), 3, (255, 0, 0), 2)
+                # for i in range(len(pre[0]) // 2):
+                #     x = int(pre[0][i * 2] * w)
+                #     y = int(pre[0][i * 2 + 1] * h)
+                #     cv2.circle(img, (x, y), 3, (255, 0, 0), 2)
+                img = add_skeleton(img, pre, (0, 0, 255), lines=1)
 
                 cv2.imwrite(os.path.join(save_dir, basename), img)
 
@@ -114,13 +115,13 @@ class Task():
 
                 # print(centers.shape)
 
-                hm = cv2.resize(np.sum(heatmaps, axis=0), (size, size)) * 255
-                cv2.imwrite(os.path.join(save_dir, basename[:-4] + "_heatmaps.jpg"), hm)
-                # img[:, :, 0] += hm
-                cv2.imwrite(os.path.join(save_dir, basename[:-4] + "_center.jpg"),
-                            cv2.resize(centers[0] * 255, (size, size)))
-                cv2.imwrite(os.path.join(save_dir, basename[:-4] + "_regs0.jpg"),
-                            cv2.resize(regs[0] * 255, (size, size)))
+                # hm = cv2.resize(np.sum(heatmaps, axis=0), (size, size)) * 255
+                # cv2.imwrite(os.path.join(save_dir, basename[:-4] + "_heatmaps.jpg"), hm)
+                # # img[:, :, 0] += hm
+                # cv2.imwrite(os.path.join(save_dir, basename[:-4] + "_center.jpg"),
+                #             cv2.resize(centers[0] * 255, (size, size)))
+                # cv2.imwrite(os.path.join(save_dir, basename[:-4] + "_regs0.jpg"),
+                #             cv2.resize(regs[0] * 255, (size, size)))
 
     def label(self, data_loader, save_dir):
         self.model.eval()
@@ -302,10 +303,6 @@ class Task():
                     else:
                         pck_acc = pck(pre, gt, torso_diameter, threshold=0.5, num_classes=self.cfg["num_classes"],
                                       mode='torso')
-                # print(pre,gt)
-                # print(correct,total)
-
-                if not fastmode:
                     correct_kps += pck_acc["total_correct"]
                     total_kps += pck_acc["total_keypoints"]
                     joint_correct += pck_acc["correct_per_joint"]
@@ -322,7 +319,7 @@ class Task():
                 kps_pre_hpecore = np.reshape(kps_hpecore, [-1])
                 row = self.create_row(ts,kps_pre_hpecore, delay=time.time()-start_sample)
                 sample = '_'.join(os.path.basename(img_names[0]).split('_')[:-1])
-                write_path = os.path.join(self.cfg['results_path'],self.cfg['dataset'],sample,'movenet_cam2.csv')
+                write_path = os.path.join(self.cfg['results_path'],self.cfg['dataset'],sample,'movenet_eventCount.csv')
                 ensure_loc(os.path.dirname(write_path))
                 self.write_results(write_path, row)
                 # superimpose_pose(img_out, pose_gt, tensors=False, filename='/home/ggoyal/data/h36m/tests/%s_gt.png' % img_names[0].split('/')[-1].split('.')[0])
@@ -388,7 +385,7 @@ class Task():
         joint_correct = np.zeros([self.cfg["num_classes"]])
         joint_total = np.zeros([self.cfg["num_classes"]])
         size = self.cfg["img_size"]
-        out = cv2.VideoWriter(video_path, cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'), 50, (size * 2, size * 2))
+        out = cv2.VideoWriter(video_path, cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'), 10, (size * 2, size * 2))
 
         text_location = (10, size * 2 - 10)  # bottom left corner of the image
         font = cv2.FONT_HERSHEY_SIMPLEX
@@ -399,7 +396,7 @@ class Task():
 
         with torch.no_grad():
             start = time.time()
-            for batch_idx, (imgs, labels, kps_mask, img_names, torso_diameter, head_size_norm, img_size_original,ts) in enumerate(
+            for batch_idx, (imgs, img_names) in enumerate(
                     data_loader):
                 #### For a single sample inference.
                 # sample_name = img_names[0].split('_')[:-1]
@@ -409,41 +406,42 @@ class Task():
                 #     break
 
                 if batch_idx % 100 == 0 and batch_idx > 10:
+
                     print('Finished samples: ', batch_idx)
-                    acc_intermediate = correct_kps / total_kps
-                    acc_joint_mean_intermediate = np.mean(joint_correct / joint_total)
-                    # print('[Info] Mean Keypoint Acc: {:.3f}%'.format(100. * acc_intermediate))
-                    print('[Info] Mean Joint Acc: {:.3f}%'.format(100. * acc_joint_mean_intermediate))
-                    print('[Info] Average Freq:', (batch_idx / (time.time() - start)), '\n')
+                    # acc_intermediate = correct_kps / total_kps
+                    # acc_joint_mean_intermediate = np.mean(joint_correct / joint_total)
+                    # # print('[Info] Mean Keypoint Acc: {:.3f}%'.format(100. * acc_intermediate))
+                    # print('[Info] Mean Joint Acc: {:.3f}%'.format(100. * acc_joint_mean_intermediate))
+                    # print('[Info] Average Freq:', (batch_idx / (time.time() - start)), '\n')
 
 
-                labels = labels.to(self.device)
+                # labels = labels.to(self.device)
                 imgs = imgs.to(self.device)
-                kps_mask = kps_mask.to(self.device)
+                # kps_mask = kps_mask.to(self.device)
 
                 output = self.model(imgs)
 
-                pre = movenetDecode(output, kps_mask, mode='output', num_joints=self.cfg["num_classes"])
-                gt = movenetDecode(labels, kps_mask, mode='label', num_joints=self.cfg["num_classes"])
+                pre = movenetDecode(output, kps_mask=None, mode='output', num_joints=self.cfg["num_classes"])
+                # gt = movenetDecode(labels, kps_mask, mode='label', num_joints=self.cfg["num_classes"])
 
-                if self.cfg['dataset'] in ['coco', 'mpii']:
-                    pck_acc = pck(pre, gt, head_size_norm, num_classes=self.cfg["num_classes"], mode='head')
-                    th_val = head_size_norm
-                else:
-                    pck_acc = pck(pre, gt, torso_diameter, num_classes=self.cfg["num_classes"], mode='torso')
-                    th_val = torso_diameter
-
-                correct_kps += pck_acc["total_correct"]
-                total_kps += pck_acc["total_keypoints"]
-                joint_correct += pck_acc["correct_per_joint"]
-                joint_total += pck_acc["anno_keypoints_per_joint"]
+                # if self.cfg['dataset'] in ['coco', 'mpii']:
+                #     pck_acc = pck(pre, gt, head_size_norm, num_classes=self.cfg["num_classes"], mode='head')
+                #     th_val = head_size_norm
+                # else:
+                #     pck_acc = pck(pre, gt, torso_diameter, num_classes=self.cfg["num_classes"], mode='torso')
+                #     th_val = torso_diameter
+                #
+                # correct_kps += pck_acc["total_correct"]
+                # total_kps += pck_acc["total_keypoints"]
+                # joint_correct += pck_acc["correct_per_joint"]
+                # joint_total += pck_acc["anno_keypoints_per_joint"]
 
                 img = np.transpose(imgs[0].cpu().numpy(), axes=[1, 2, 0])
                 img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
                 h, w = img.shape[:2]
                 img = img*3
                 img[img>255] = 255
-                for i in range(len(gt[0]) // 2):
+                for i in range(len(pre[0]) // 2):
                     # img = add_skeleton(img, gt, (0, 255, 0),lines=1)
                     img = add_skeleton(img, pre, (0, 0, 255),lines=1)
                     # x = int(gt[0][i * 2] * w)
@@ -453,7 +451,7 @@ class Task():
                     # x = int(pre[0][i * 2] * w)
                     # y = int(pre[0][i * 2 + 1] * h)
                     # cv2.circle(img, (x, y), 2, (0, 0, 255), 1)  # predicted keypoints in red
-                # # Show center heatmaps
+                # Show center heatmaps
                 # centers = output[1].cpu().numpy()[0]
                 # from lib.utils.utils import maxPoint
                 # cx, cy = maxPoint(centers)
@@ -479,10 +477,10 @@ class Task():
                 # cv2.waitKey(1)
                 out.write(img2)
 
-        acc = correct_kps / total_kps
-        acc_joint_mean = np.mean(joint_correct / joint_total)
-        print('[Info] Mean Keypoint Acc: {:.3f}%'.format(100. * acc))
-        print('[Info] Mean Joint Acc: {:.3f}% \n'.format(100. * acc_joint_mean))
+        # acc = correct_kps / total_kps
+        # acc_joint_mean = np.mean(joint_correct / joint_total)
+        # print('[Info] Mean Keypoint Acc: {:.3f}%'.format(100. * acc))
+        # print('[Info] Mean Joint Acc: {:.3f}% \n'.format(100. * acc_joint_mean))
         out.release()
 
 
