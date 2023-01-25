@@ -278,6 +278,8 @@ def arg_parser(cfg):
                         type=str)
     parser.add_argument('--eval_label_path', help='File (full or relative path) to evaluation annotation file',
                         default=cfg['eval_label_path'], type=str)
+    parser.add_argument('--out_video_path', help='File (full or relative path) to evaluation annotation file',
+                        default=cfg['out_video_path'], type=str)
 
     args = parser.parse_args()
 
