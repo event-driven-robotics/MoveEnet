@@ -21,7 +21,7 @@ def init(cfg):
 
 
 
-    os.environ["CUDA_VISIBLE_DEVICES"] = cfg['GPU_ID']
+    os.environ["CUDA_VISIBLE_DEVICES"] = str(cfg['GPU_ID'])
     setRandomSeed(cfg['random_seed'])
 
 

@@ -207,6 +207,14 @@ def update_tuner_cfg(cfg,args):
 def arg_parser(cfg):
     parser = argparse.ArgumentParser()
     ##### Global Setting
+    parser.add_argument('--params_file', help='Path to the config file. If not specified default params will be used.', type=str)
+    args, _ = parser.parse_known_args()
+    try:
+        import yaml
+        with open(args.params_file) as f:
+            cfg = yaml.load(f, yaml.FullLoader)
+    except:
+        pass
     parser.add_argument('--no_early_stop', help='No early stop if overfitting.', action='store_true')
     parser.add_argument('--GPU_ID', help='GPUs to use. Example: 0,1,2', default=cfg['GPU_ID'])
     parser.add_argument('--dataset', help='Training dataset.', default=cfg['dataset'],

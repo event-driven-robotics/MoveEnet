@@ -5,7 +5,7 @@ https://github.com/fire717
 from lib import init, Data, MoveNet, Task
 from config import cfg
 from lib.utils.utils import arg_parser, update_tuner_cfg
-import os, json
+import os, json, yaml
 
 
 def main(cfg):
@@ -24,8 +24,9 @@ def main(cfg):
 
     run_task = Task(cfg, model)
     run_task.modelLoad(model_path=cfg["ckpt"])
-    with open(f'{os.path.join(cfg["save_dir"], cfg["label"])}/cfg.txt', 'w') as convert_file:
-        convert_file.write(json.dumps(cfg))
+    with open(f'{os.path.join(cfg["save_dir"], cfg["label"])}/cfg.yml', 'w') as convert_file:
+        # convert_file.write(json.dumps(cfg)) #TODO make it yaml compatible
+        yaml.dump(cfg, convert_file)
     run_task.train(train_loader, val_loader)
 
 

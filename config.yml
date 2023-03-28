@@ -1,0 +1,58 @@
+##### Global Setting
+GPU_ID: 0
+num_workers: 4
+random_seed: 42
+cfg_verbose: True
+save_dir: /home/icub/data/outputs/
+# num_classes: 17
+width_mult: 1.0
+img_size: 192
+label: dev
+
+##### Train Setting
+pre-separated_data: True
+training_data_split: 80
+dataset: h36m
+balance_data: False
+log_interval: 100
+save_best_only: False
+pin_memory: True
+th: 20  # percentage of headsize
+training_mode: continuous # one-off
+set_epoch: null
+default_ckpt: /home/icub/data/h36m/models/mpii_pre-trained.pth
+# from_scratch: True
+
+##### Train Hyperparameters
+learning_rate: 0.001  # 1.25e-4
+batch_size: 64
+epochs: 5
+optimizer: Adam  # Adam  SGD
+scheduler: MultiStepLR-30,70,110-0.2  # default  SGDR-5-2  CVPR   step-4-0.8 MultiStepLR
+# multistepLR-<<>milestones>-<<decay multiplier>>
+weight_decay: 0.001  # 5.e-4,  # 0.0001,
+class_weight: null  # [1., 1., 1., 1., 1., 1., 1., ]
+clip_gradient: 5  # 1,
+w_heatmap: 1
+w_bone: 20
+w_center: 1
+w_reg: 3
+w_offset: 1
+
+##### Test
+predict_output_path: /home/icub/data/outputs/predict/
+results_path: /home/icub/data/../results/
+exam_output_path: /home/icub/data/outputs/exam/
+
+num_classes: 13
+img_path: /home/icub/data/h36m/training/h36m_background/h36m_background_img/
+train_label_path: /home/icub/data/h36m/training/h36m_background/h36m_anno/train_subject.json
+val_label_path: /home/icub/data/h36m/training/h36m_background/h36m_anno/val_subject.json
+test_img_path: /home/icub/data/h36m/samples_for_pred/
+exam_label_path: /home/icub/data/h36m/samples_for_pred/h36m_anno/poses.json
+exam_img_path: /home/icub/data/h36m/samples_for_pred/
+eval_img_path: /home/icub/data/h36m/training/h36m_EROS/
+eval_label_path: /home/icub/data/h36m/training/val_subject.json
+ckpt: ''
+
+
