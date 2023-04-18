@@ -3,7 +3,7 @@
 
 # Default values
 script=../train_lenet_decolle.py
-MIN_REQ_MEM=5000
+MIN_REQ_MEM=4850
 save_dir=test
 random_search=false
 cpu=false

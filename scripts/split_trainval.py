@@ -82,7 +82,7 @@ def split(data, val_split=20, mode='ratio', val_subs=None, val_cams=None):
 
 
 ### Read and pre-process the data
-path = "/home/ggoyal/data/h36m_cropped/poses.json"
+path = "/home/icub/data/background_augmentation/training/h36m_anno/poses.json"
 # path = r"/home/ggoyal/data/h36m/training/poses.json"
 data = read_data(path)
 # data = fix_data(data)
@@ -110,8 +110,8 @@ print(len(data), len(data_train), len(data_val))
 # with open("/home/ggoyal/data/h36m/training/poses_full_clean.json", 'w') as f:
 #     json.dump(data, f, ensure_ascii=False)
 
-with open("/home/ggoyal/data/h36m_cropped/train_subject.json", 'w') as f:
+with open("/home/icub/data/background_augmentation/training/train_subject.json", 'w') as f:
     json.dump(data_train, f, ensure_ascii=False)
 
-with open("/home/ggoyal/data/h36m_cropped/val_subject.json", 'w') as f:
+with open("/home/icub/data/background_augmentation/training/val_subject.json", 'w') as f:
     json.dump(data_val, f, ensure_ascii=False)

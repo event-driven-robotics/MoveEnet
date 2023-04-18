@@ -56,9 +56,9 @@ for d in tqdm(param_files):
             ea = EventAccumulator(os.path.join(containing_dir, file))
             ea.Reload()
             test_losses = [[y.value for y in ea.Scalars(x)] for x in ea.Tags()[
-                'scalars'] if x.startswith('Test_Loss')]
+                'scalars'] if x.startswith('Train Total Loss')]
             test_accuracies = [[y.value for y in ea.Scalars(x)] for x in ea.Tags()[
-                'scalars'] if x.startswith('Test_Accuracy')]
+                'scalars'] if x.startswith('Val Accuracy')]
 
             # Taking the min loss and max accuracy after smoothing the data with moving average
             min_losses = [round(min(np.convolve(x, np.ones(

@@ -49,7 +49,8 @@ class Task():
         self.scheduler = getSchedu(self.cfg['scheduler'], self.optimizer)
 
         # tensorboard
-        self.tb = SummaryWriter(comment=self.cfg['label'])
+        log_dir = os.path.join(self.cfg["save_dir"], "dev")
+        self.tb = SummaryWriter(log_dir=log_dir, comment=self.cfg['label'])
         self.tb.add_graph(self.model, torch.randn(1, 3, 192, 192).to(self.device))
         self.tb.add_text("Hyperparameters: ", str(cfg))
         self.best_train_accuracy = 0
