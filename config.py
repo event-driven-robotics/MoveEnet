@@ -6,9 +6,9 @@ https://github.com/fire717
 # dataset = "coco"
 # dataset = "mpii2"
 # dataset = 'h36m'
-dataset = 'h36m_cropped/half'
+dataset = 'h36m_cropped'
 # dataset = 'DHP19'
-home = "/media/Data/data/" + dataset + "/"
+home = "/home/ggoyal/data/" + dataset + "/"
 # home = "/work/ggoyal/Data/"+dataset+"/"
 
 cfg = {
@@ -56,7 +56,8 @@ cfg = {
     ##### Test
     'predict_output_path': home + "outputs/predict/",
     'results_path': home + "../results/",
-    "exam_output_path": home + "outputs/exam/"
+    "exam_output_path": home + "outputs/exam/",
+    "out_video_path": home + "video/"
 }
 
 cfg["ckpt"] = home + f'output/{cfg["label"]}/newest.json'
@@ -98,7 +99,7 @@ if dataset == 'h36m':
     cfg["eval_img_path"] = home + '/training/h36m_EROS/'
     cfg["eval_label_path"] = home + '/training/val_subject.json'
 
-if dataset == 'h36m_cropped/half':
+if dataset == 'h36m_cropped':
     cfg["num_classes"] = 13
     cfg["img_path"] = home + "images/h36m_EROS"
     cfg["separated_data"] = True

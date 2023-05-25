@@ -18,7 +18,8 @@ def main(cfg):
                     mode='train')
 
     data = Data(cfg)
-    data_loader = data.getEvalDataloader()
+    data_loader = data.getTestDataloader()
+    # NOTE: All image files in the folder "test_img_path" and it's subfolders will be considered for the inference
 
     run_task = Task(cfg, model)
 
@@ -26,7 +27,7 @@ def main(cfg):
 
     # run_task.evaluate(data_loader)
     # run_task.save_video(data_loader,'/home/ggoyal/data/h36m_cropped/tester/input_sample.avi')
-    run_task.infer_video(data_loader,'/home/ggoyal/data/h36m_cropped/tester/h36m_new_out_50Hz.avi')
+    run_task.infer_video(data_loader,'/home/ggoyal/data/h36m_cropped/tester/test.avi')
 
 
 if __name__ == '__main__':
