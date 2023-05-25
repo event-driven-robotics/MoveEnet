@@ -184,6 +184,26 @@ def extract_keypoints(heatmap):
     x, y = keypoints_with_score_and_id[0][0], keypoints_with_score_and_id[0][1]
     return x, y
 
+def update_cfg(cfg,args):
+
+    try:
+        for key, value in vars(args).items():
+            cfg[key] = value
+    except TypeError:
+        for key, value in args.items():
+            cfg[key] = value
+    return cfg
+
+def update_tuner_cfg(cfg,args):
+
+    keys = ['batch_size','ckpt','learning_rate','weight_decay','scheduler', 'w_reg','w_bone','save_best_only']
+    for key in keys:
+        try:
+            cfg[key] = vars(args)[key]
+        except TypeError:
+            cfg[key] = args[key]
+    return cfg
+
 def arg_parser(cfg):
     parser = argparse.ArgumentParser()
     ##### Global Setting
@@ -207,8 +227,8 @@ def arg_parser(cfg):
     parser.add_argument('--training_data_split',
                         help='Percentage of data to use for training. Not used if pre-separated set to True',
                         default=cfg['training_data_split'], type=int)
-    parser.add_argument('--newest_ckpt', help='File containing the name of the latest model checkpoints',
-                        default=cfg['newest_ckpt'], type=str)
+    parser.add_argument('--ckpt', help='File containing the name of the latest model checkpoints',
+                        default=cfg['ckpt'], type=str)
     parser.add_argument('--balance_data', help='Set true for data balancing', default=cfg['balance_data'], type=str)
     parser.add_argument('--log_interval', help='How frequently to log output', default=cfg['log_interval'], type=int)
     parser.add_argument('--save_best_only', help='Save only the best or improved model checkpoints',
@@ -216,8 +236,14 @@ def arg_parser(cfg):
     parser.add_argument('--pin_memory', help='Pin memory', default=cfg['pin_memory'], type=bool)
     parser.add_argument('--th', help='Threshold value, in percentage of head size, for accuracy calculation',
                         default=cfg['th'], type=int)
-    parser.add_argument('--from_scratch', help='Set true to begin training from scratch', default=cfg['from_scratch'],
-                        type=str)
+    parser.add_argument('--default_ckpt', help='The default model checkpoint for the training or finetuning runs',
+                        default=cfg['default_ckpt'], type=str)
+    parser.add_argument('--training_mode', help='Trainind mode: continuous vs one-offheckpoint for the training or finetuning runs',
+                        default=cfg['training_mode'], type=str, choices=['continuous', 'one-off'])
+    parser.add_argument('--set_epoch', help='A starting epoch of the logs. Only active in one-off training mode',
+                        default=cfg['set_epoch'], type=int)
+    # parser.add_argument('--from_scratch', help='Set true to begin training from scratch', default=cfg['from_scratch'],
+    #                     type=str)
 
     ##### Train Hyperparameters
     parser.add_argument('--learning_rate', help='Initial learning rate of the training paradigm',
@@ -252,11 +278,12 @@ def arg_parser(cfg):
                         type=str)
     parser.add_argument('--eval_label_path', help='File (full or relative path) to evaluation annotation file',
                         default=cfg['eval_label_path'], type=str)
+    parser.add_argument('--out_video_path', help='File (full or relative path) to evaluation annotation file',
+                        default=cfg['out_video_path'], type=str)
 
     args = parser.parse_args()
 
-    for key, value in vars(args).items():
-        cfg[key] = value
+    update_cfg(cfg,args)
 
     return cfg
 

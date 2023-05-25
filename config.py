@@ -6,9 +6,9 @@ https://github.com/fire717
 # dataset = "coco"
 # dataset = "mpii2"
 # dataset = 'h36m'
-dataset = 'h36m_cropped/half'
+dataset = 'h36m_cropped'
 # dataset = 'DHP19'
-home = "/media/Data/data/" + dataset + "/"
+home = "/home/ggoyal/data/" + dataset + "/"
 # home = "/work/ggoyal/Data/"+dataset+"/"
 
 cfg = {
@@ -17,7 +17,7 @@ cfg = {
     "num_workers": 4,
     "random_seed": 42,
     "cfg_verbose": True,
-    "save_dir": home + "output/",
+    "save_dir": home + "outputs/",
     # "num_classes": 17,
     "width_mult": 1.0,
     "img_size": 192,
@@ -28,13 +28,14 @@ cfg = {
     'training_data_split': 80,
     "dataset": dataset,
     'balance_data': False,
-    'log_interval': 10,
+    'log_interval': 100,
     'save_best_only': False,
-
     'pin_memory': True,
-    'newest_ckpt': home + 'output/newest.json',
-    'th': 50,  # percentage of headsize
-    'from_scratch': True,
+    'th': 20,  # percentage of headsize
+    'training_mode': 'continuous', # 'one-off'
+    'set_epoch': None,
+    'default_ckpt': '/home/ggoyal/data/models/mpii_pretrained.pth',
+    # 'from_scratch': True,
 
     ##### Train Hyperparameters
     'learning_rate': 0.001,  # 1.25e-4
@@ -53,38 +54,35 @@ cfg = {
     'w_offset': 1,
 
     ##### Test
-    'predict_output_path': home + "/predict/",
-    'results_path': home + "/results/",
+    'predict_output_path': home + "outputs/predict/",
+    'results_path': home + "../results/",
+    "exam_output_path": home + "outputs/exam/",
+    "out_video_path": home + "video/"
 }
 
+cfg["ckpt"] = home + f'output/{cfg["label"]}/newest.json'
 # test_img_path is for prediction script
 
 if dataset == "coco":
     cfg["num_classes"] = 17
     cfg["img_path"] = "cropped/imgs"
-    cfg["separated_data"] = True
     cfg["train_label_path"] = home + 'cropped/train2017.json'
     cfg["val_label_path"] = home + 'cropped/val2017.json'
 
     cfg["test_img_path"] = home + "cropped/imgs"
     cfg["exam_label_path"] = home + '/all/data_all_new.json'
-    cfg["exam_output_path"] = home + "/exam/"
     cfg["eval_img_path"] = home + "cropped/imgs"
     cfg["eval_label_path"] = home + 'val.json'
 
 if dataset == "mpii2":
     cfg["num_classes"] = 13
     cfg["img_path"] = home + "eros_synthetic_export_cropped/"
-    cfg["separated_data"] = True
     cfg["train_label_path"] = home + '/eros_synthetic_export_cropped/train.json'
     cfg["val_label_path"] = home + '/eros_synthetic_export_cropped/val.json'
 
-    # cfg["test_img_path"] = home + '/tos_synthetic_export/'
-    # cfg["test_img_path"] = home + 'eval_subset/'
-    # cfg["predict_output_path"] = home + '/pred_mpii2_on-mpii-cropped/'
+    cfg["test_img_path"] = home + 'eros_synthetic_export_cropped'
     cfg["exam_label_path"] = home + 'val_subset.json'
     cfg["exam_img_path"] = home + 'eval_subset/'
-    cfg["exam_output_path"] = home + "/exam/"
     cfg["eval_img_path"] = home + '/eros_synthetic_export_cropped/'
     cfg["eval_label_path"] = home + '/eros_synthetic_export_cropped/val.json'
     # cfg["eval_label_path"] =  home + 'cropped/val2017.json'
@@ -92,19 +90,16 @@ if dataset == "mpii2":
 if dataset == 'h36m':
     cfg["num_classes"] = 13
     cfg["img_path"] = home + "training/h36m_EROS/"
-    cfg["separated_data"] = True
     cfg["train_label_path"] = home + '/training/train_subject.json'
     cfg["val_label_path"] = home + '/training/val_subject.json'
 
     cfg["test_img_path"] = home + '/samples_for_pred/'
-    cfg["predict_output_path"] = home + "/pred_output/"
     cfg["exam_label_path"] = home + '/samples_for_pred/poses.json'
     cfg["exam_img_path"] = home + '/samples_for_pred/'
-    cfg["exam_output_path"] = home + "/exam/"
     cfg["eval_img_path"] = home + '/training/h36m_EROS/'
     cfg["eval_label_path"] = home + '/training/val_subject.json'
 
-if dataset == 'h36m_cropped/half':
+if dataset == 'h36m_cropped':
     cfg["num_classes"] = 13
     cfg["img_path"] = home + "images/h36m_EROS"
     cfg["separated_data"] = True

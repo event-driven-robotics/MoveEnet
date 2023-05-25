@@ -27,11 +27,6 @@ class Task():
 
         self.cfg = cfg
         self.init_epoch = 0
-        # if self.cfg['GPU_ID'] != '' :
-        #     self.device = torch.device("cuda")
-        # else:
-        #     self.device = torch.device("cpu")
-
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")  # edit for Franklin
         self.model = model.to(self.device)
 
@@ -101,13 +96,14 @@ class Task():
                 img = np.transpose(img[0].cpu().numpy(), axes=[1, 2, 0])
                 img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
                 h, w = img.shape[:2]
-
+                img = img*3
                 cv2.imwrite(os.path.join(save_dir, basename[:-4] + "_img.jpg"), img)
 
-                for i in range(len(pre[0]) // 2):
-                    x = int(pre[0][i * 2] * w)
-                    y = int(pre[0][i * 2 + 1] * h)
-                    cv2.circle(img, (x, y), 3, (255, 0, 0), 2)
+                # for i in range(len(pre[0]) // 2):
+                #     x = int(pre[0][i * 2] * w)
+                #     y = int(pre[0][i * 2 + 1] * h)
+                #     cv2.circle(img, (x, y), 3, (255, 0, 0), 2)
+                img = add_skeleton(img, pre, (0, 0, 255), lines=1)
 
                 cv2.imwrite(os.path.join(save_dir, basename), img)
 
@@ -119,13 +115,13 @@ class Task():
 
                 # print(centers.shape)
 
-                hm = cv2.resize(np.sum(heatmaps, axis=0), (size, size)) * 255
-                cv2.imwrite(os.path.join(save_dir, basename[:-4] + "_heatmaps.jpg"), hm)
-                # img[:, :, 0] += hm
-                cv2.imwrite(os.path.join(save_dir, basename[:-4] + "_center.jpg"),
-                            cv2.resize(centers[0] * 255, (size, size)))
-                cv2.imwrite(os.path.join(save_dir, basename[:-4] + "_regs0.jpg"),
-                            cv2.resize(regs[0] * 255, (size, size)))
+                # hm = cv2.resize(np.sum(heatmaps, axis=0), (size, size)) * 255
+                # cv2.imwrite(os.path.join(save_dir, basename[:-4] + "_heatmaps.jpg"), hm)
+                # # img[:, :, 0] += hm
+                # cv2.imwrite(os.path.join(save_dir, basename[:-4] + "_center.jpg"),
+                #             cv2.resize(centers[0] * 255, (size, size)))
+                # cv2.imwrite(os.path.join(save_dir, basename[:-4] + "_regs0.jpg"),
+                #             cv2.resize(regs[0] * 255, (size, size)))
 
     def label(self, data_loader, save_dir):
         self.model.eval()
@@ -307,10 +303,6 @@ class Task():
                     else:
                         pck_acc = pck(pre, gt, torso_diameter, threshold=0.5, num_classes=self.cfg["num_classes"],
                                       mode='torso')
-                # print(pre,gt)
-                # print(correct,total)
-
-                if not fastmode:
                     correct_kps += pck_acc["total_correct"]
                     total_kps += pck_acc["total_keypoints"]
                     joint_correct += pck_acc["correct_per_joint"]
@@ -327,7 +319,7 @@ class Task():
                 kps_pre_hpecore = np.reshape(kps_hpecore, [-1])
                 row = self.create_row(ts,kps_pre_hpecore, delay=time.time()-start_sample)
                 sample = '_'.join(os.path.basename(img_names[0]).split('_')[:-1])
-                write_path = os.path.join(self.cfg['results_path'],self.cfg['dataset'],sample,'movenet_cam2.csv')
+                write_path = os.path.join(self.cfg['results_path'],self.cfg['dataset'],sample,'movenet_eventCount.csv')
                 ensure_loc(os.path.dirname(write_path))
                 self.write_results(write_path, row)
                 # superimpose_pose(img_out, pose_gt, tensors=False, filename='/home/ggoyal/data/h36m/tests/%s_gt.png' % img_names[0].split('/')[-1].split('.')[0])
@@ -393,7 +385,7 @@ class Task():
         joint_correct = np.zeros([self.cfg["num_classes"]])
         joint_total = np.zeros([self.cfg["num_classes"]])
         size = self.cfg["img_size"]
-        out = cv2.VideoWriter(video_path, cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'), 50, (size * 2, size * 2))
+        out = cv2.VideoWriter(video_path, cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'), 10, (size * 2, size * 2))
 
         text_location = (10, size * 2 - 10)  # bottom left corner of the image
         font = cv2.FONT_HERSHEY_SIMPLEX
@@ -404,7 +396,7 @@ class Task():
 
         with torch.no_grad():
             start = time.time()
-            for batch_idx, (imgs, labels, kps_mask, img_names, torso_diameter, head_size_norm, img_size_original,ts) in enumerate(
+            for batch_idx, (imgs, img_names) in enumerate(
                     data_loader):
                 #### For a single sample inference.
                 # sample_name = img_names[0].split('_')[:-1]
@@ -414,41 +406,42 @@ class Task():
                 #     break
 
                 if batch_idx % 100 == 0 and batch_idx > 10:
+
                     print('Finished samples: ', batch_idx)
-                    acc_intermediate = correct_kps / total_kps
-                    acc_joint_mean_intermediate = np.mean(joint_correct / joint_total)
-                    # print('[Info] Mean Keypoint Acc: {:.3f}%'.format(100. * acc_intermediate))
-                    print('[Info] Mean Joint Acc: {:.3f}%'.format(100. * acc_joint_mean_intermediate))
-                    print('[Info] Average Freq:', (batch_idx / (time.time() - start)), '\n')
+                    # acc_intermediate = correct_kps / total_kps
+                    # acc_joint_mean_intermediate = np.mean(joint_correct / joint_total)
+                    # # print('[Info] Mean Keypoint Acc: {:.3f}%'.format(100. * acc_intermediate))
+                    # print('[Info] Mean Joint Acc: {:.3f}%'.format(100. * acc_joint_mean_intermediate))
+                    # print('[Info] Average Freq:', (batch_idx / (time.time() - start)), '\n')
 
 
-                labels = labels.to(self.device)
+                # labels = labels.to(self.device)
                 imgs = imgs.to(self.device)
-                kps_mask = kps_mask.to(self.device)
+                # kps_mask = kps_mask.to(self.device)
 
                 output = self.model(imgs)
 
-                pre = movenetDecode(output, kps_mask, mode='output', num_joints=self.cfg["num_classes"])
-                gt = movenetDecode(labels, kps_mask, mode='label', num_joints=self.cfg["num_classes"])
+                pre = movenetDecode(output, kps_mask=None, mode='output', num_joints=self.cfg["num_classes"])
+                # gt = movenetDecode(labels, kps_mask, mode='label', num_joints=self.cfg["num_classes"])
 
-                if self.cfg['dataset'] in ['coco', 'mpii']:
-                    pck_acc = pck(pre, gt, head_size_norm, num_classes=self.cfg["num_classes"], mode='head')
-                    th_val = head_size_norm
-                else:
-                    pck_acc = pck(pre, gt, torso_diameter, num_classes=self.cfg["num_classes"], mode='torso')
-                    th_val = torso_diameter
-
-                correct_kps += pck_acc["total_correct"]
-                total_kps += pck_acc["total_keypoints"]
-                joint_correct += pck_acc["correct_per_joint"]
-                joint_total += pck_acc["anno_keypoints_per_joint"]
+                # if self.cfg['dataset'] in ['coco', 'mpii']:
+                #     pck_acc = pck(pre, gt, head_size_norm, num_classes=self.cfg["num_classes"], mode='head')
+                #     th_val = head_size_norm
+                # else:
+                #     pck_acc = pck(pre, gt, torso_diameter, num_classes=self.cfg["num_classes"], mode='torso')
+                #     th_val = torso_diameter
+                #
+                # correct_kps += pck_acc["total_correct"]
+                # total_kps += pck_acc["total_keypoints"]
+                # joint_correct += pck_acc["correct_per_joint"]
+                # joint_total += pck_acc["anno_keypoints_per_joint"]
 
                 img = np.transpose(imgs[0].cpu().numpy(), axes=[1, 2, 0])
                 img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
                 h, w = img.shape[:2]
                 img = img*3
                 img[img>255] = 255
-                for i in range(len(gt[0]) // 2):
+                for i in range(len(pre[0]) // 2):
                     # img = add_skeleton(img, gt, (0, 255, 0),lines=1)
                     img = add_skeleton(img, pre, (0, 0, 255),lines=1)
                     # x = int(gt[0][i * 2] * w)
@@ -458,7 +451,7 @@ class Task():
                     # x = int(pre[0][i * 2] * w)
                     # y = int(pre[0][i * 2 + 1] * h)
                     # cv2.circle(img, (x, y), 2, (0, 0, 255), 1)  # predicted keypoints in red
-                # # Show center heatmaps
+                # Show center heatmaps
                 # centers = output[1].cpu().numpy()[0]
                 # from lib.utils.utils import maxPoint
                 # cx, cy = maxPoint(centers)
@@ -484,10 +477,10 @@ class Task():
                 # cv2.waitKey(1)
                 out.write(img2)
 
-        acc = correct_kps / total_kps
-        acc_joint_mean = np.mean(joint_correct / joint_total)
-        print('[Info] Mean Keypoint Acc: {:.3f}%'.format(100. * acc))
-        print('[Info] Mean Joint Acc: {:.3f}% \n'.format(100. * acc_joint_mean))
+        # acc = correct_kps / total_kps
+        # acc_joint_mean = np.mean(joint_correct / joint_total)
+        # print('[Info] Mean Keypoint Acc: {:.3f}%'.format(100. * acc))
+        # print('[Info] Mean Joint Acc: {:.3f}% \n'.format(100. * acc_joint_mean))
         out.release()
 
 
@@ -647,7 +640,7 @@ class Task():
         right_count = np.array([0] * self.cfg['num_classes'], dtype=np.int64)
         total_count = 0
         with torch.no_grad():
-            for batch_idx, (imgs, labels, kps_mask, img_names, torso_diameter, head_size_norm, _) in enumerate(
+            for batch_idx, (imgs, labels, kps_mask, img_names, torso_diameter, head_size_norm, _, _) in enumerate(
                     val_loader):
                 labels = labels.to(self.device)
                 imgs = imgs.to(self.device)
@@ -753,7 +746,29 @@ class Task():
                     res_list.append(output_one)
         return res_list
 
-    def modelLoad(self, model_path, data_parallel=False):
+    def modelLoad(self, model_path=None, data_parallel=False):
+        training_mode = self.cfg['training_mode']
+        use_default = 0
+        if not os.path.exists(model_path):
+            print(f'File {model_path} does not exist.')
+            if training_mode == 'continuous':
+                print('Checking for best model')
+                if os.path.exists(os.path.join(self.cfg['save_dir'], self.cfg['label'], "best.pth")):
+                    model_path = os.path.join(self.cfg['save_dir'], self.cfg['label'], "best.pth")
+                else:
+                    print('best.pth also does not exist.')
+                    use_default = 1
+            elif training_mode == 'one_off':
+                print("Using default path.")
+                use_default = 1
+
+            if use_default:
+                if os.path.exists(self.cfg['default_ckpt']):
+                    print('Starting training from default checkpoint')
+                    model_path = self.cfg['default_ckpt']
+                else:
+                    print('Starting from scratch.')
+                    return
 
         if os.path.splitext(model_path)[-1] == '.json':
             with open(model_path, 'r') as f:
@@ -761,30 +776,41 @@ class Task():
                 str1 = ''
             init_epoch = int(str1.join(os.path.basename(model_path).split('_')[0][1:]))
             self.init_epoch = init_epoch
-        print(model_path)
+
+        if training_mode == 'one_off':
+            if self.cfg["set_epoch"]:
+                if isinstance(self.cfg["set_epoch"], int):
+                    self.init_epoch = self.cfg["set_epoch"]
+                else:
+                    print("The set_epoch variable must be an integer. Initial epoch not modified.")
+
+
+        print(f'Model {model_path} loaded.')
         self.model.load_state_dict(torch.load(model_path, map_location=self.device))
 
         if data_parallel:
             self.model = torch.nn.DataParallel(self.model)
 
     def modelSave(self, save_name, is_best=False):
-        if self.cfg['save_best_only']:
-            if is_best:
-                fullname_best = os.path.join(self.cfg['save_dir'], self.cfg['label'], "best.pth")
-                torch.save(self.model.state_dict(), fullname_best)
 
-                fullname = os.path.join(self.cfg['save_dir'], self.cfg['label'], save_name)
-                torch.save(self.model.state_dict(), fullname)
-                with open(Path(self.cfg['newest_ckpt']).resolve(), 'w') as f:
-                    json.dump(fullname, f, ensure_ascii=False)
-
+        if is_best:
+            fullname_best = os.path.join(self.cfg['save_dir'], self.cfg['label'], "best.pth")
+            torch.save(self.model.state_dict(), fullname_best)
         else:
-            fullname = os.path.join(self.cfg['save_dir'], self.cfg['label'], save_name)
-            torch.save(self.model.state_dict(), fullname)
+            if self.cfg['save_best_only']:
+                return
 
-            with open(Path(self.cfg['newest_ckpt']).resolve(), 'w') as f:
-                json.dump(fullname, f, ensure_ascii=False)
+        fullname = os.path.join(self.cfg['save_dir'], self.cfg['label'], save_name)
+        torch.save(self.model.state_dict(), fullname)
+        with open(Path(self.cfg['ckpt']).resolve(), 'w') as f:
+            json.dump(fullname, f, ensure_ascii=False)
+
         # print("Save model to: ",save_name)
+        return
+
+
+
+
 
     def add_to_tb(self, heatmap_loss, bone_loss, center_loss, regs_loss, offset_loss, total_loss, acc, epoch,
                   label=None):
