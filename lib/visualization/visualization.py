@@ -73,7 +73,8 @@ def superimpose_pose(img_in, pose, num_classes=13, tensors=True, filename=None):
     pose = np.array(pose)
     pose = pose.squeeze()
     pose = pose.reshape((num_classes, -1))
-    img  = np.copy(img_in)
+    img = np.copy(img_in)
+    img = img.astype(np.uint8)
     if tensors:
         img = np.transpose(img.cpu().numpy(), axes=[1, 2, 0])
         img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
@@ -88,15 +89,19 @@ def superimpose_pose(img_in, pose, num_classes=13, tensors=True, filename=None):
         for i in range((pose.shape[0])):
             pose[i, 0] = int(pose[i, 0] * w)
             pose[i, 1] = int(pose[i, 1] * h)
+    radius = 3
+    thickness = 2
     for i in range((pose.shape[0])):
         # img = cv2.circle(img,(5,5),3,(0,255,0),5)
-        img = cv2.circle(img, (int(pose[i, 0]), int(pose[i, 1])), 3, color, 2)
+        if pose.shape[1]==3:
+            radius = int(pose[i, 2]*5)
+        img = cv2.circle(img, (int(pose[i, 0]), int(pose[i, 1])), radius, color, thickness)
     if filename is not None:
         # print(filename)
         cv2.imwrite(filename, img)
 
     cv2.imshow('a', img)
-    cv2.waitKey(500)
+    cv2.waitKey(100)
 
 def add_skeleton(img,keypoints,color, lines = None):
 

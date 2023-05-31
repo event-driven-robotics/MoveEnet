@@ -330,12 +330,16 @@ def movenetDecode(data, kps_mask=None, mode='output', num_joints=17,
 
 def restore_sizes(img_tensor,pose,size_out):
     size_in = img_tensor.shape
+    if pose.size % 3 == 0:
+        dim = 3
+    else:
+        dim = 2
 
     # resize image
     img = np.transpose(img_tensor.cpu().numpy(), axes=[1, 2, 0])
     img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
     img_out = cv2.resize(img,(size_out[1],size_out[0]))
-    pose_out = np.copy(pose.reshape((-1,2)))
+    pose_out = np.copy(pose.reshape((-1,dim)))
     for i in range(len(pose_out)):
         pose_out[i,0] = pose_out[i,0] * size_out[1]
         pose_out[i,1] = pose_out[i,1] * size_out[0]
