@@ -328,10 +328,13 @@ def normalize_center(image_size, center):
 
     return new_center
 
+def mask_lower_body(kps_mask):
+    kps_mask[9:] = 0
+    return kps_mask
 
 ######## dataloader
 class TensorDataset(Dataset):
-    def __init__(self, data_labels, img_dir, img_size, data_aug=None, num_classes=13):
+    def __init__(self, data_labels, img_dir, img_size, data_aug=None, num_classes=13, keypoint_subset='all'):
         self.data_labels = data_labels
         self.img_dir = img_dir
         self.data_aug = data_aug
@@ -339,6 +342,7 @@ class TensorDataset(Dataset):
         self.num_classes = num_classes
         self.interp_methods = [cv2.INTER_LINEAR, cv2.INTER_CUBIC, cv2.INTER_AREA,
                                cv2.INTER_NEAREST, cv2.INTER_LANCZOS4]
+        self.keypoint_subset = keypoint_subset # 'all' 'upper_body'
 
     def __getitem__(self, index):
         item = self.data_labels[index]
@@ -411,6 +415,8 @@ class TensorDataset(Dataset):
             ##0没有标注;1有标注不可见（被遮挡）;2有标注可见
             if keypoints[i * 3 + 2] == 0:
                 kps_mask[i] = 0
+        if self.keypoint_subset == 'upper_body': # 'all' 'upper_body'
+            kps_mask = mask_lower_body(kps_mask)
         # img = img.transpose((1,2,0))
         # img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
         # cv2.imwrite(os.path.join("_img.jpg"), img)
@@ -518,7 +524,8 @@ def getDataLoader(mode, input_data, cfg):
                           cfg['img_path'],
                           cfg['img_size'],
                           DataAug(cfg['img_size']),
-                          num_classes=cfg['num_classes']
+                          num_classes=cfg['num_classes'],
+                          keypoint_subset=cfg['keypoint_subset']
                           ),
             batch_size=cfg['batch_size'],
             shuffle=True,
@@ -529,7 +536,8 @@ def getDataLoader(mode, input_data, cfg):
             TensorDataset(input_data[1],
                           cfg['img_path'],
                           cfg['img_size'],
-                          num_classes=cfg['num_classes']
+                          num_classes=cfg['num_classes'],
+                          keypoint_subset=cfg['keypoint_subset']
                           ),
             batch_size=cfg['batch_size'],
             shuffle=False,
@@ -544,7 +552,8 @@ def getDataLoader(mode, input_data, cfg):
             TensorDataset(input_data[0],
                           cfg['img_path'],
                           cfg['img_size'],
-                          num_classes=cfg['num_classes']
+                          num_classes=cfg['num_classes'],
+                          keypoint_subset=cfg['keypoint_subset']
                           ),
             batch_size=1,
             shuffle=False,
@@ -559,7 +568,8 @@ def getDataLoader(mode, input_data, cfg):
             TensorDataset(input_data[0],
                           cfg['eval_img_path'],
                           cfg['img_size'],
-                          num_classes=cfg['num_classes']
+                          num_classes=cfg['num_classes'],
+                          keypoint_subset=cfg['keypoint_subset']
                           ),
             batch_size=1,
             shuffle=False,
@@ -574,7 +584,8 @@ def getDataLoader(mode, input_data, cfg):
             TensorDataset(input_data[0],
                           cfg['exam_img_path'],
                           cfg['img_size'],
-                          num_classes=cfg['num_classes']
+                          num_classes=cfg['num_classes'],
+                          keypoint_subset=cfg['keypoint_subset']
                           ),
             batch_size=1,
             shuffle=False,
