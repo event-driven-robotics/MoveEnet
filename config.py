@@ -35,6 +35,7 @@ cfg = {
     'training_mode': 'continuous', # 'one-off'
     'set_epoch': None,
     'default_ckpt': '/home/ggoyal/data/models/mpii_pretrained.pth',
+    'keypoint_subset': 'all', #  'all' 'upper_body'
     # 'from_scratch': True,
 
     ##### Train Hyperparameters

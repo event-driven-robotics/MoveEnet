@@ -252,6 +252,7 @@ def arg_parser(cfg):
     parser.add_argument('--epochs', help='Epochs', default=cfg['epochs'], type=int)
     parser.add_argument('--optimizer', help='Optimizer', default=cfg['optimizer'], type=str, choices=['Adam', 'SGD'])
     parser.add_argument('--scheduler', help='scheduler', default=cfg['scheduler'], type=str)
+    parser.add_argument('--keypoint_subset', help='keypoint subset: "all" or "upper_body"', default=cfg['keypoint_subset'], type=str)
     parser.add_argument('--weight_decay', help='weight decay', default=cfg['weight_decay'], type=float)
     parser.add_argument('--class_weight', help='class weight', default=cfg['class_weight'])
     parser.add_argument('--clip_gradient', help='Clip gradient', default=cfg['clip_gradient'])

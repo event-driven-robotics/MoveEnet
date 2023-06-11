@@ -313,9 +313,10 @@ class Task():
 
                 _, pose_pre = restore_sizes(imgs[0], pre, (int(img_size_original[0]), int(img_size_original[1])))
                 # print('pre after restore function',pose_pre)
-
-                kps_2d = np.reshape(pose_pre, [-1, 2])
-                kps_hpecore = movenet_to_hpecore(kps_2d)
+                # superimpose_pose(img_out, pose_pre, tensors=False)
+                # continue
+                # kps_2d = np.reshape(pose_pre, [-1, 2])
+                kps_hpecore = movenet_to_hpecore(pose_pre)
                 kps_pre_hpecore = np.reshape(kps_hpecore, [-1])
                 row = self.create_row(ts,kps_pre_hpecore, delay=time.time()-start_sample)
                 sample = '_'.join(os.path.basename(img_names[0]).split('_')[:-1])
