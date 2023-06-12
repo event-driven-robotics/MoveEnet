@@ -336,11 +336,22 @@ def mask_lower_body(kps_mask):
     return kps_mask
 
 
-def resize_event_res(data, img_initial, img_final):
+def resize_event_res(data, img_initial, img_final, ts_events):
+    frame = np.zeros([len(ts_events),img_final, img_final])
+    count = 0
     for i in range(len(data['ts'])):
+        if data['pol'][i]>ts_events[count]:
+            count=+1
         data['x'][i] = int(data['x'][i] / img_initial[1] * img_final)
         data['y'][i] = int(data['y'][i] / img_initial[0] * img_final)
-    return data
+        data['x'][data['x']>191]=191
+        data['y'][data['y']>191]=191
+        # print(count, data['x'][i],data['y'][i])
+        if data['pol'][i]:
+            frame[count, int(data['x'][i]),int(data['y'][i])] =+1
+        else:
+            frame[count, int(data['x'][i]),int(data['y'][i])] =-1
+    return frame
 
 
 ######## dataloader
@@ -630,12 +641,10 @@ class TensorDatasetSpike(Dataset):
             # print(labels.shape)
             # head_size = get_headsize(head_size_scaled, self.img_size)
             torso_diameter[i] = get_torso_diameter(keypoints_allsamples[i, :])
-        container = resize_event_res(container, image_size_original, self.img_size)
+        imgs = resize_event_res(container, image_size_original, self.img_size, ts_events)
 
 
-
-
-        return container, labels_all, kps_mask, file_path, torso_diameter, head_size_scaled, ts_events, 0
+        return imgs, labels_all, kps_mask, file_path, torso_diameter, head_size_scaled, ts_events, 0
 
     def __len__(self):
         return len(self.data_labels)
