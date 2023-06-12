@@ -336,6 +336,13 @@ def mask_lower_body(kps_mask):
     return kps_mask
 
 
+def resize_event_res(data, img_initial, img_final):
+    for i in range(len(data['ts'])):
+        data['x'][i] = int(data['x'][i] / img_initial[1] * img_final)
+        data['y'][i] = int(data['y'][i] / img_initial[0] * img_final)
+    return data
+
+
 ######## dataloader
 class TensorDataset(Dataset):
     def __init__(self, data_labels, img_dir, img_size, data_aug=None, num_classes=13, keypoint_subset='all'):
@@ -535,9 +542,10 @@ class TensorDatasetSpike(Dataset):
         """
         item = {
                  "file_name":save_name,
-                 'ts': timestanp
+                 'ts': timestamp
                  "keypoints":save_keypoints,
                  "center":save_center,
+                 "image_size": [width height]
            }
         """
         # label_str_list = label_str.strip().split(',')
@@ -566,13 +574,13 @@ class TensorDatasetSpike(Dataset):
         head_size_scaled = item.get("head_size_scaled", 0)
         keypoints = item.get("keypoints", [[] for i in range(self.num_classes)])
         center = item.get("center", [])
+        image_size_original = item.get("image_size", [])
         other_centers = item.get("other_centers", [])
         other_keypoints = item.get("other_keypoints", [[] for i in range(self.num_classes)])
         skeleton_base_ts = item.get('ts', [])
 
         ts_events = np.linspace(container['ts'][0], container['ts'][-1], num=41, endpoint=True)
         ts_events = ts_events[1:]
-
 
         n = len(skeleton_base_ts)
         keypoints = np.reshape(keypoints, [n, -1])
@@ -598,13 +606,14 @@ class TensorDatasetSpike(Dataset):
         centers_allsamples[:, 0] = np.interp(ts_events, skeleton_base_ts, center[:, 0])
         centers_allsamples[:, 1] = np.interp(ts_events, skeleton_base_ts, center[:, 1])
 
-        labels_all = np.zeros([len(ts_events), (self.num_classes * 5) + 1, int(self.img_size / 4), int(self.img_size / 4)])
+        labels_all = np.zeros(
+            [len(ts_events), (self.num_classes * 5) + 1, int(self.img_size / 4), int(self.img_size / 4)])
         torso_diameter = np.zeros([len(ts_events)])
         for i in range(len(ts_events)):
             heatmaps, sigma = label2heatmap(keypoints_allsamples[i, :], other_keypoints, self.img_size)  # (17, 48, 48)
 
-            cx = min(max(0, int(centers_allsamples[i,0] * self.img_size // 4)), self.img_size // 4 - 1)
-            cy = min(max(0, int(centers_allsamples[i,1] * self.img_size // 4)), self.img_size // 4 - 1)
+            cx = min(max(0, int(centers_allsamples[i, 0] * self.img_size // 4)), self.img_size // 4 - 1)
+            cy = min(max(0, int(centers_allsamples[i, 1] * self.img_size // 4)), self.img_size // 4 - 1)
 
             centers = label2center(cx, cy, other_centers, self.img_size, sigma)  # (1, 48, 48)
 
@@ -612,17 +621,21 @@ class TensorDatasetSpike(Dataset):
 
             offsets = label2offset(keypoints_allsamples[i, :], cx, cy, regs, self.img_size)  # (14, 48, 48)
 
-            n = self.num_classes
-            labels = np.concatenate([heatmaps[:n, :, :], centers, regs[:2 * n, :, :], offsets[:2 * n, :, :]], axis=0)
-            labels_all[i,:] = labels
+            r = self.num_classes
+            labels = np.concatenate([heatmaps[:r, :, :], centers, regs[:2 * r, :, :], offsets[:2 * r, :, :]], axis=0)
+            labels_all[i, :] = labels
             # labels = np.concatenate([heatmaps, centers, regs, offsets], axis=0)
             # print("labels: " + str(labels.shape))
             # print(heatmaps.shape,centers.shape,regs.shape,offsets.shape,labels.shape)
             # print(labels.shape)
             # head_size = get_headsize(head_size_scaled, self.img_size)
             torso_diameter[i] = get_torso_diameter(keypoints_allsamples[i, :])
+        container = resize_event_res(container, image_size_original, self.img_size)
 
-        return container, labels, kps_mask, file_path, torso_diameter, head_size_scaled, ts_events,0
+
+
+
+        return container, labels_all, kps_mask, file_path, torso_diameter, head_size_scaled, ts_events, 0
 
     def __len__(self):
         return len(self.data_labels)
