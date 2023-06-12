@@ -171,6 +171,31 @@ class Data():
                                     self.cfg)
         return test_loader
 
+    def getTrainValDataloader_spike(self):
+
+        with open(self.cfg['train_label_path'], 'r') as f:
+            train_label_list = json.loads(f.readlines()[0])
+
+        with open(self.cfg['val_label_path'], 'r') as f:
+            val_label_list = json.loads(f.readlines()[0])
+
+        print("[INFO] Total train images: %d, val images: %d" %
+              (len(train_label_list), len(val_label_list)))
+
+        if self.cfg['balance_data']:
+            train_label_list = self.dataBalance(train_label_list)
+            val_label_list = self.dataBalance(val_label_list)
+            print("[INFO] After balance data, Total train images: %d, val images: %d" %
+                  (len(train_label_list), len(val_label_list)))
+        else:
+            print("[INFO] Not executing data balance.")
+
+        input_data = [train_label_list, val_label_list]
+        train_loader, val_loader = getDataLoader("trainval_spike",
+                                                 input_data,
+                                                 self.cfg)
+        return train_loader, val_loader
+
     def showData(self, data_loader, show_num=400):
         # show train data finally to exam
 

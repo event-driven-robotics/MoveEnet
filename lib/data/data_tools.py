@@ -15,6 +15,7 @@ import albumentations as A
 import json
 import platform
 import math
+import h5py
 
 from lib.data.data_augment import DataAug
 from lib.utils.utils import maxPoint, extract_keypoints
@@ -323,14 +324,17 @@ def normalize_keypoints(image_size, keypoints):
 
     return new_keypoints
 
+
 def normalize_center(image_size, center):
     new_center = np.copy(center)
 
     return new_center
 
+
 def mask_lower_body(kps_mask):
     kps_mask[9:] = 0
     return kps_mask
+
 
 ######## dataloader
 class TensorDataset(Dataset):
@@ -342,7 +346,7 @@ class TensorDataset(Dataset):
         self.num_classes = num_classes
         self.interp_methods = [cv2.INTER_LINEAR, cv2.INTER_CUBIC, cv2.INTER_AREA,
                                cv2.INTER_NEAREST, cv2.INTER_LANCZOS4]
-        self.keypoint_subset = keypoint_subset # 'all' 'upper_body'
+        self.keypoint_subset = keypoint_subset  # 'all' 'upper_body'
 
     def __getitem__(self, index):
         item = self.data_labels[index]
@@ -365,7 +369,6 @@ class TensorDataset(Dataset):
 
         img_path = os.path.join(self.img_dir, item["img_name"])
 
-
         if not dev:
             img = cv2.imread(img_path, cv2.IMREAD_COLOR)
             # if image is not found
@@ -377,7 +380,7 @@ class TensorDataset(Dataset):
                              interpolation=random.choice(self.interp_methods))
 
         else:
-            img_size_original = [640,480,3]
+            img_size_original = [640, 480, 3]
 
         #### Data Augmentation
         if not dev:
@@ -405,7 +408,6 @@ class TensorDataset(Dataset):
         # print(keypoints)
         # print(center)
 
-
         if len(other_keypoints) == 0:
             other_keypoints = [[] for i in range(self.num_classes)]
         # print(keypoints)
@@ -415,7 +417,7 @@ class TensorDataset(Dataset):
             ##0没有标注;1有标注不可见（被遮挡）;2有标注可见
             if keypoints[i * 3 + 2] == 0:
                 kps_mask[i] = 0
-        if self.keypoint_subset == 'upper_body': # 'all' 'upper_body'
+        if self.keypoint_subset == 'upper_body':  # 'all' 'upper_body'
             kps_mask = mask_lower_body(kps_mask)
         # img = img.transpose((1,2,0))
         # img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
@@ -516,6 +518,116 @@ class TensorDatasetTest(Dataset):
         return len(self.data_labels)
 
 
+######## dataloader
+class TensorDatasetSpike(Dataset):
+    def __init__(self, data_labels, file_dir, img_size, data_aug=None, num_classes=13, keypoint_subset='all'):
+        self.data_labels = data_labels
+        self.file_dir = file_dir
+        self.data_aug = data_aug
+        self.img_size = img_size
+        self.num_classes = num_classes
+        self.interp_methods = [cv2.INTER_LINEAR, cv2.INTER_CUBIC, cv2.INTER_AREA,
+                               cv2.INTER_NEAREST, cv2.INTER_LANCZOS4]
+        self.keypoint_subset = keypoint_subset  # 'all' 'upper_body'
+
+    def __getitem__(self, index):
+        item = self.data_labels[index]
+        """
+        item = {
+                 "file_name":save_name,
+                 'ts': timestanp
+                 "keypoints":save_keypoints,
+                 "center":save_center,
+           }
+        """
+        # label_str_list = label_str.strip().split(',')
+        # [name,h,w,keypoints...]
+
+        dev = False
+
+        file_path = os.path.join(self.file_dir, item["file_name"])
+        hf = h5py.File(file_path, 'r')
+        data = np.array(hf["events"][:])
+        container = {}
+
+        try:
+            container['ts'] = data[:, 0] * 1e-6
+        except IndexError:
+            print('Skipping file')
+
+        container['x'] = data[:, 1]
+        container['y'] = data[:, 2]
+        container['pol'] = data[:, 3].astype(bool)
+
+        item['other_keypoints'] = [[] for i in range(self.num_classes)]
+        item['other_centers'] = []
+
+        head_size = item.get("head_size", 0)
+        head_size_scaled = item.get("head_size_scaled", 0)
+        keypoints = item.get("keypoints", [[] for i in range(self.num_classes)])
+        center = item.get("center", [])
+        other_centers = item.get("other_centers", [])
+        other_keypoints = item.get("other_keypoints", [[] for i in range(self.num_classes)])
+        skeleton_base_ts = item.get('ts', [])
+
+        ts_events = np.linspace(container['ts'][0], container['ts'][-1], num=41, endpoint=True)
+        ts_events = ts_events[1:]
+
+
+        n = len(skeleton_base_ts)
+        keypoints = np.reshape(keypoints, [n, -1])
+        center = np.reshape(center, [n, -1])
+        assert keypoints.shape[1] == self.num_classes * 3
+
+        if len(other_keypoints) == 0:
+            other_keypoints = [[] for i in range(self.num_classes)]
+
+        kps_mask = np.ones(np.size(keypoints[0, :]) // 3)
+        for i in range(len(keypoints) // 3):
+            ##0没有标注;1有标注不可见（被遮挡）;2有标注可见
+            if keypoints[:, i * 3 + 2].any() == 0:
+                kps_mask[i] = 0
+
+        if self.keypoint_subset == 'upper_body':  # 'all' 'upper_body'
+            kps_mask = mask_lower_body(kps_mask)
+        # Interporate the keypoints
+        keypoints_allsamples = np.zeros([len(ts_events), self.num_classes * 3])
+        centers_allsamples = np.zeros([len(ts_events), 2])
+        for i in range(self.num_classes * 3):
+            keypoints_allsamples[:, i] = np.interp(ts_events, skeleton_base_ts, keypoints[:, i])
+        centers_allsamples[:, 0] = np.interp(ts_events, skeleton_base_ts, center[:, 0])
+        centers_allsamples[:, 1] = np.interp(ts_events, skeleton_base_ts, center[:, 1])
+
+        labels_all = np.zeros([len(ts_events), (self.num_classes * 5) + 1, int(self.img_size / 4), int(self.img_size / 4)])
+        torso_diameter = np.zeros([len(ts_events)])
+        for i in range(len(ts_events)):
+            heatmaps, sigma = label2heatmap(keypoints_allsamples[i, :], other_keypoints, self.img_size)  # (17, 48, 48)
+
+            cx = min(max(0, int(centers_allsamples[i,0] * self.img_size // 4)), self.img_size // 4 - 1)
+            cy = min(max(0, int(centers_allsamples[i,1] * self.img_size // 4)), self.img_size // 4 - 1)
+
+            centers = label2center(cx, cy, other_centers, self.img_size, sigma)  # (1, 48, 48)
+
+            regs = label2reg(keypoints_allsamples[i, :], cx, cy, self.img_size)  # (14, 48, 48)
+
+            offsets = label2offset(keypoints_allsamples[i, :], cx, cy, regs, self.img_size)  # (14, 48, 48)
+
+            n = self.num_classes
+            labels = np.concatenate([heatmaps[:n, :, :], centers, regs[:2 * n, :, :], offsets[:2 * n, :, :]], axis=0)
+            labels_all[i,:] = labels
+            # labels = np.concatenate([heatmaps, centers, regs, offsets], axis=0)
+            # print("labels: " + str(labels.shape))
+            # print(heatmaps.shape,centers.shape,regs.shape,offsets.shape,labels.shape)
+            # print(labels.shape)
+            # head_size = get_headsize(head_size_scaled, self.img_size)
+            torso_diameter[i] = get_torso_diameter(keypoints_allsamples[i, :])
+
+        return container, labels, kps_mask, file_path, torso_diameter, head_size_scaled, ts_events,0
+
+    def __len__(self):
+        return len(self.data_labels)
+
+
 ###### get data loader
 def getDataLoader(mode, input_data, cfg):
     if mode == "trainval":
@@ -607,6 +719,36 @@ def getDataLoader(mode, input_data, cfg):
             pin_memory=False)
 
         return data_loader
+
+    elif mode == "trainval_spike":
+
+        train_loader = torch.utils.data.DataLoader(
+            TensorDatasetSpike(input_data[0],
+                               cfg['img_path'],
+                               cfg['img_size'],
+                               DataAug(cfg['img_size']),
+                               num_classes=cfg['num_classes'],
+                               keypoint_subset=cfg['keypoint_subset']
+                               ),
+            batch_size=cfg['batch_size'],
+            shuffle=True,
+            num_workers=cfg['num_workers'],
+            pin_memory=cfg['pin_memory'])
+
+        val_loader = torch.utils.data.DataLoader(
+            TensorDatasetSpike(input_data[1],
+                               cfg['img_path'],
+                               cfg['img_size'],
+                               num_classes=cfg['num_classes'],
+                               keypoint_subset=cfg['keypoint_subset']
+                               ),
+            batch_size=cfg['batch_size'],
+            shuffle=False,
+            num_workers=cfg['num_workers'],
+            pin_memory=cfg['pin_memory'])
+
+        return train_loader, val_loader
+
 
 
     else:
