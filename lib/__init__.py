@@ -6,6 +6,7 @@ import os
 
 from lib.data.data import Data
 from lib.models.movenet_mobilenetv2 import MoveNet
+from lib.models.movenet_stencil import MoveNet as Movenet_stencil
 from lib.task.task import Task
 
 

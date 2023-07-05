@@ -643,6 +643,16 @@ class TensorDatasetSpike(Dataset):
             torso_diameter[i] = get_torso_diameter(keypoints_allsamples[i, :])
         imgs = resize_event_res(container, image_size_original, self.img_size, ts_events)
 
+        # Testing
+        # for i in range(keypoints_allsamples.shape[0]):
+        #     pose = np.squeeze(keypoints_allsamples[i]).reshape(self.num_classes, 3)
+        #
+        #     frame = np.zeros([self.img_size, self.img_size, 3])
+        #     for j in range(pose.shape[0]):
+        #         frame = cv2.circle(frame, (int(pose[j, 0] * 192), int(pose[j, 1] * 192)), 3, (0, 0, 255), 3)
+        #         # frame = cv2.circle(frame, [keypoint[i, 0] * 192, keypoint[i, 1] * 192], 3, (0, 0, 255), 3)
+        #     cv2.imshow('', frame)
+        #     cv2.waitKey(50)
 
         return imgs, labels_all, kps_mask, file_path, torso_diameter, head_size_scaled, ts_events, 0
 

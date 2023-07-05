@@ -7,6 +7,7 @@ import torch.nn as nn
 import math
 
 
+import norse.torch as norse
 
 
 """
@@ -147,13 +148,21 @@ class Backbone(nn.Module):
         #mobilenet v2
 
 
-        input_channel = 32
+        input_channel = 36
 
-        self.features1 = nn.Sequential(*[
-                            conv_3x3_act(3, input_channel, 2),
-                            dw_conv(input_channel, 16, 1),
-                            InvertedResidual(16, 24, 2, 6, 1)
-                        ])
+        self.features1 = norse.SequentialState(*[
+            norse.SpatialReceptiveField2d(1, 4, 4, 3, 11, 0, stride=2, padding=5),
+            nn.BatchNorm2d(input_channel),
+            norse.TemporalReceptiveField((36, 96, 96), 4),
+            nn.Flatten(1, 2),
+            norse.SpatialReceptiveField2d(36 * 4, 3, 3, 3, 11, 1, padding="same"),
+            nn.BatchNorm2d(84),
+            norse.TemporalReceptiveField((84, 96, 96), 1),
+            nn.Flatten(1, 2),
+            nn.BatchNorm2d(84),
+            norse.SpatialReceptiveField2d(84, 2, 2, 2, 11, [(0, 1), (1, 0), (1, 1)], padding="same"),
+            InvertedResidual(18, 24, 2, 6, 1)
+        ])
 
         self.features2 = InvertedResidual(24, 32, 2, 6, 2)
         self.features3 = InvertedResidual(32, 64, 2, 6, 3)
@@ -180,34 +189,38 @@ class Backbone(nn.Module):
 
 
     def forward(self, x):
-        x = x/127.5-1
+        out = []
+        state = None
 
+        for timestep in x:
+            timestep = timestep/127.5-1
 
-        f1 = self.features1(x)
-        #print(f1.shape)#1, 24, 48, 48]
-        
-        f2 = self.features2(f1)
-        #print(f2.shape)#1, 32, 24, 24]
+            f1, state = self.features1(timestep, state)
+            #print(f1.shape)#1, 24, 48, 48]
+            
+            f2 = self.features2(f1)
+            #print(f2.shape)#1, 32, 24, 24]
 
-        f3 = self.features3(f2)
-        #print(f3.shape)#[1, 64, 12, 12]
+            f3 = self.features3(f2)
+            #print(f3.shape)#[1, 64, 12, 12]
 
-        f4 = self.features4(f3)
-        f3 = self.conv3(f3)
-        #print(f4.shape)#[1, 64, 12, 12]
-        f4 += f3
+            f4 = self.features4(f3)
+            f3 = self.conv3(f3)
+            #print(f4.shape)#[1, 64, 12, 12]
+            f4 += f3
 
-        f4 = self.upsample2(f4)
-        f2 = self.conv2(f2)
-        f4 += f2
+            f4 = self.upsample2(f4)
+            f2 = self.conv2(f2)
+            f4 += f2
 
-        f4 = self.upsample1(f4)
-        f1 = self.conv1(f1)
-        f4 += f1
+            f4 = self.upsample1(f4)
+            f1 = self.conv1(f1)
+            f4 += f1
 
-        f4 = self.conv4(f4)
+            f4 = self.conv4(f4)
 
-        return f4
+            out.append(f4)
+        return torch.stack(out)
 
 
 
@@ -335,10 +348,14 @@ class MoveNet(nn.Module):
         x = self.backbone(x) # n,24,48,48
         # print(x.shape)
 
-        x = self.header(x)
+        out = []
+        for timestep in x:
+            y = self.header(timestep)
+
+            out.extend(y)
         # print([x0.shape for x0 in x])
 
-        return x
+        return out
 
 
     def _initialize_weights(self):
