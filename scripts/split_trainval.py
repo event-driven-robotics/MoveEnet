@@ -80,14 +80,25 @@ def split(data, val_split=20, mode='ratio', val_subs=None, val_cams=None):
 
     return data_train, data_val
 
+def rename_to_older_nomenclature(data):
+    for d in data:
+        x = d["img_name"].split('_')
+        num = x[-1]
+        num = num.lstrip('0')
+        x[-1] = num
+        d["img_name"] = '_'.join(x)
+
+    return data
+
 
 ### Read and pre-process the data
 path = "/home/ggoyal/data/h36m_cropped/poses.json"
 # path = r"/home/ggoyal/data/h36m/training/poses.json"
 data = read_data(path)
 # data = fix_data(data)
-# img_path = '/home/ggoyal/data/h36m/training/h36m_EROS/'
-# data = file_exists_check(data, img_path)
+img_path = '/home/ggoyal/data/h36m_cropped/training/h36m_EROS'
+rename_to_older_nomenclature(data)
+data = file_exists_check(data, img_path)
 
 subs = ['S9', 'S11']
 cams = ['cam4']
