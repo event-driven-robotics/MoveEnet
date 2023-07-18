@@ -575,7 +575,7 @@ class Task():
             if self.cfg['dataset'] in ['coco', 'mpii']:
                 pck_acc = pck(pre, gt, head_size_norm, num_classes=self.cfg["num_classes"], mode='head')
             else:
-                pck_acc = pck(pre, gt, torso_diameter, num_classes=self.cfg["num_classes"], mode='torso')
+                pck_acc = pck(pre, gt, torso_diameter, num_classes=self.cfg["num_classes"], mode='torso', dim=2)
 
             # right_count += pck
             # total_count += labels.shape[0]
@@ -670,7 +670,7 @@ class Task():
                 if self.cfg['dataset'] in ['coco', 'mpii']:
                     pck_acc = pck(pre, gt, head_size_norm, num_classes=self.cfg["num_classes"], mode='head')
                 else:
-                    pck_acc = pck(pre, gt, torso_diameter, num_classes=self.cfg["num_classes"], mode='torso')
+                    pck_acc = pck(pre, gt, torso_diameter, num_classes=self.cfg["num_classes"], mode='torso', dim=2)
                 # right_count += pck
                 # total_count += labels.shape[0]
                 correct_kps += pck_acc["total_correct"]

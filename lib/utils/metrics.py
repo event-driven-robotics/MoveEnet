@@ -59,11 +59,12 @@ def myAcc(output, target, th=0.5, num_classes = 13):
     return cate_acc
 
 
-def pck(output, target, limb_length, threshold=None, num_classes=13, mode='head'):
-    if output.size % 3 == 0:
-        dim = 3
-    else:
-        dim = 2
+def pck(output, target, limb_length, threshold=None, num_classes=13, mode='head',dim=None):
+    if dim is None:
+        if output.size % 3 == 0:
+            dim = 3
+        else:
+            dim = 2
     if threshold is None:
         if mode == 'head': # for MPII dataset
             threshold = 0.5
