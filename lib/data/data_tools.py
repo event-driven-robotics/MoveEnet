@@ -351,6 +351,7 @@ class TensorDataset(Dataset):
                  "img_name":save_name,
                  'ts': timestanp
                  "head_size":head_size, (optional)
+                 "torso_size":torso_size (optional)
                  "head_size_scaled":head_size_scaled, (optional)
                  "keypoints":save_keypoints,
                  "center":save_center,
@@ -396,6 +397,7 @@ class TensorDataset(Dataset):
         keypoints = item.get("keypoints", [[] for i in range(self.num_classes)])
         center = item.get("center", [])
         other_centers = item.get("other_centers", [])
+        torso_size = item.get("torso_size", 0)
         other_keypoints = item.get("other_keypoints", [[] for i in range(self.num_classes)])
         ts = item.get('ts', 0)
 
@@ -476,13 +478,14 @@ class TensorDataset(Dataset):
         # print(heatmaps.shape,centers.shape,regs.shape,offsets.shape,labels.shape)
         # print(labels.shape)
         # head_size = get_headsize(head_size_scaled, self.img_size)
-        torso_diameter = get_torso_diameter(keypoints)
+        if torso_size == 0:
+            torso_size = get_torso_diameter(keypoints)
 
         # if head_size is None or head_size_scaled is None:
         #     return img, labels, kps_mask, img_path
         # else:
 
-        return img, labels, kps_mask, img_path, torso_diameter, head_size_scaled, img_size_original, ts
+        return img, labels, kps_mask, img_path, torso_size, head_size_scaled, img_size_original, ts
 
     def __len__(self):
         return len(self.data_labels)
