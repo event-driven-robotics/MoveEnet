@@ -596,6 +596,8 @@ class TensorDatasetSpike(Dataset):
         n = len(skeleton_base_ts)
         keypoints = np.reshape(keypoints, [n, -1])
         center = np.reshape(center, [n, -1])
+        print('keypoints.shape[1]', keypoints.shape[1])
+        print('self.num_classes * 3', self.num_classes * 3)
         assert keypoints.shape[1] == self.num_classes * 3
 
         if len(other_keypoints) == 0:

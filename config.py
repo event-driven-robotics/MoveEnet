@@ -21,26 +21,26 @@ cfg = {
     # "num_classes": 17,
     "width_mult": 1.0,
     "img_size": 192,
-    'label': 'dev',
+    'label': 'stencil',
 
     ##### Train Setting
     'pre-separated_data': True,
     'training_data_split': 80,
     "dataset": dataset,
     'balance_data': False,
-    'log_interval': 100,
+    'log_interval': 2,
     'save_best_only': False,
     'pin_memory': True,
     'th': 20,  # percentage of headsize
     'training_mode': 'continuous', # 'one-off'
     'set_epoch': None,
     'default_ckpt': '/home/ggoyal/data/models/mpii_pretrained.pth',
-    'keypoint_subset': 'all', #  'all' 'upper_body'
+    'keypoint_subset': 'upper_body', #  'all' 'upper_body'
     # 'from_scratch': True,
 
     ##### Train Hyperparameters
     'learning_rate': 0.001,  # 1.25e-4
-    'batch_size': 64,
+    'batch_size': 2,
     'epochs': 300,
     'optimizer': 'Adam',  # Adam  SGD
     'scheduler': 'MultiStepLR-70,100-0.1',  # default  SGDR-5-2  CVPR   step-4-0.8 MultiStepLR
@@ -102,10 +102,10 @@ if dataset == 'h36m':
 
 if dataset == 'h36m_cropped':
     cfg["num_classes"] = 13
-    cfg["img_path"] = home + "images/h36m_EROS"
+    cfg["img_path"] = home + "tester/h36m_stencil"
     cfg["separated_data"] = True
-    cfg["train_label_path"] = home + 'train_subject.json'
-    cfg["val_label_path"] = home + 'val_subject.json'
+    cfg["train_label_path"] = home + '/tester/stencil_anno/poses.json'
+    cfg["val_label_path"] = home + '/tester/stencil_anno/poses.json'
 
     cfg["test_img_path"] = home + ''
     cfg["predict_output_path"] = home + "predictions/"

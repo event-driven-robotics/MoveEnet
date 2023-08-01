@@ -33,7 +33,8 @@ def main(cfg):
     train_loader, val_loader = data.getTrainValDataloader_spike()
 
     run_task = Task(cfg, model)
-    run_task.modelLoad(model_path=cfg["ckpt"])
+    # run_task.modelLoad(model_path=cfg["ckpt"])
+    model._initialize_weights()
     # with open(f'{os.path.join(cfg["save_dir"], cfg["label"])}/cfg.txt', 'w') as convert_file:
     #     convert_file.write(json.dumps(cfg))
     run_task.train(train_loader, val_loader)
