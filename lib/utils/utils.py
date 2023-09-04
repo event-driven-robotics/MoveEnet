@@ -211,6 +211,8 @@ def arg_parser(cfg):
     parser.add_argument('--GPU_ID', help='GPUs to use. Example: 0,1,2', default=cfg['GPU_ID'])
     parser.add_argument('--dataset', help='Training dataset.', default=cfg['dataset'],
                         choices=["mpii", "coco", 'h36m', 'dhp19'], type=str)
+    parser.add_argument('--architecture', help='Architecture.', default=cfg['architecture'],
+                        choices=["spiking", "mobilenet2"], type=str)
     parser.add_argument('--num_workers', help='Number of workers', default=cfg['num_workers'], type=int)
     parser.add_argument('--random_seed', help='Random seed', default=cfg['random_seed'], type=int)
     parser.add_argument('--cfg_verbose', '-v', help='Verbosity', default=cfg['cfg_verbose'], type=str)

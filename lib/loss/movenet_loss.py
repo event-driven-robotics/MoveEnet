@@ -309,74 +309,89 @@ class MovenetLoss(torch.nn.Module):
 
         return x, y
 
-    def forward(self, output, target, kps_mask, n_classes):
-        batch_size = output[0].size(0)
-        num_joints = output[0].size(1)
+    def forward(self, output_all, target, kps_mask, n_classes):
+        
+        
+        batch_size = output_all[0].size(0)
+        num_joints = output_all[0].size(1)
+        timesteps = len(output_all)/4
+
+        heatmap_loss_all = np.zeros([timesteps])
+        bone_loss_all = np.zeros([timesteps])
+        center_loss_all = np.zeros([timesteps])
+        regs_loss_all = np.zeros([timesteps])
+        offset_loss_all = np.zeros([timesteps])
+
         # print("output: ", [x.shape for x in output])
         # [64, 7, 48, 48] [64, 1, 48, 48] [64, 14, 48, 48] [64, 14, 48, 48]
         # print("target: ", [x.shape for x in target])#[64, 36, 48, 48]
         # print(weights.shape)# [14,]
-        heatmaps = target[:, :n_classes, :, :]
-        centers = target[:, n_classes:n_classes+1, :, :]
-        regs = target[:, n_classes+1:(n_classes*3)+1, :, :]
-        offsets = target[:, (n_classes*3)+1:, :, :]
+        for tau in timesteps:
+            heatmaps = target[tau, :, :n_classes, :, :]
+            centers = target[tau, :, n_classes:n_classes+1, :, :]
+            regs = target[tau, :, n_classes+1:(n_classes*3)+1, :, :]
+            offsets = target[tau, :, (n_classes*3)+1:, :, :]
+            output = output_all[4 * tau: 4 * (tau+1)]
+            # print("heatmaps: " + str(heatmaps.shape))
+            # print("centers: " + str(centers.shape))
+            # print("regs: " + str(regs.shape))
+            # print("offsets: " + str(offsets.shape))
 
-        # print("heatmaps: " + str(heatmaps.shape))
-        # print("centers: " + str(centers.shape))
-        # print("regs: " + str(regs.shape))
-        # print("offsets: " + str(offsets.shape))
+            heatmap_loss_all[tau] = self.heatmapLoss(output[0], heatmaps, batch_size)
 
-        heatmap_loss = self.heatmapLoss(output[0], heatmaps, batch_size)
+            # bg_loss = self.bgLoss(output[0], heatmaps)
+            # bone_loss = self.boneloss(output[0], heatmaps)
+            bone_loss_all[tau] = self.boneLoss(output[0], heatmaps)
+            # print(heatmap_loss)
+            center_loss_all[tau] = self.centerLoss(output[1], centers, batch_size)
 
-        # bg_loss = self.bgLoss(output[0], heatmaps)
-        # bone_loss = self.boneloss(output[0], heatmaps)
-        bone_loss = self.boneLoss(output[0], heatmaps)
-        # print(heatmap_loss)
-        center_loss = self.centerLoss(output[1], centers, batch_size)
+            if not self.make_center_w:
+                self.center_weight = torch.reshape(self.center_weight, (1, 1, 48, 48))
+                self.center_weight = self.center_weight.repeat((output[1].shape[0], output[1].shape[1], 1, 1))
+                # print(self.center_weight.shape)
+                # b
+                self.center_weight = self.center_weight.to(target.device)
+                self.make_center_w = True
+                self.center_weight.requires_grad_(False)
 
-        if not self.make_center_w:
-            self.center_weight = torch.reshape(self.center_weight, (1, 1, 48, 48))
-            self.center_weight = self.center_weight.repeat((output[1].shape[0], output[1].shape[1], 1, 1))
-            # print(self.center_weight.shape)
+                # self.range_weight_x = self.range_weight_x.to(target.device)
+                # self.range_weight_y = self.range_weight_y.to(target.device)
+                # self.range_weight_x.requires_grad_(False)
+                # self.range_weight_y.requires_grad_(False)
+            # print(self.center_weight)
+
+            cx0, cy0 = self.maxPointPth(centers)
+            # cx1, cy1 = self.maxPointPth(pre_centers)
+            cx0 = torch.clip(cx0, 0, _feature_map_size - 1).long()
+            cy0 = torch.clip(cy0, 0, _feature_map_size - 1).long()
+            # cx1 = torch.clip(cx1,0,_feature_map_size-1).long()
+            # cy1 = torch.clip(cy1,0,_feature_map_size-1).long()
+
+            # print(cx0, cy0)
+            # bbb
+            # cv2.imwrite("_centers.jpg", centers[0][0].cpu().numpy()*255)
             # b
-            self.center_weight = self.center_weight.to(target.device)
-            self.make_center_w = True
-            self.center_weight.requires_grad_(False)
 
-            # self.range_weight_x = self.range_weight_x.to(target.device)
-            # self.range_weight_y = self.range_weight_y.to(target.device)
-            # self.range_weight_x.requires_grad_(False)
-            # self.range_weight_y.requires_grad_(False)
-        # print(self.center_weight)
+            regs_loss_all[tau] = self.regsLoss(output[2], regs, cx0, cy0, kps_mask, batch_size, num_joints)
+            offset_loss_all[tau] = self.offsetLoss(output[3], offsets,
+                                          cx0, cy0, regs,
+                                          kps_mask, batch_size, num_joints)
 
-        cx0, cy0 = self.maxPointPth(centers)
-        # cx1, cy1 = self.maxPointPth(pre_centers)
-        cx0 = torch.clip(cx0, 0, _feature_map_size - 1).long()
-        cy0 = torch.clip(cy0, 0, _feature_map_size - 1).long()
-        # cx1 = torch.clip(cx1,0,_feature_map_size-1).long()
-        # cy1 = torch.clip(cy1,0,_feature_map_size-1).long()
-
-        # print(cx0, cy0)
-        # bbb
-        # cv2.imwrite("_centers.jpg", centers[0][0].cpu().numpy()*255)
-        # b
-
-        regs_loss = self.regsLoss(output[2], regs, cx0, cy0, kps_mask, batch_size, num_joints)
-        offset_loss = self.offsetLoss(output[3], offsets,
-                                      cx0, cy0, regs,
-                                      kps_mask, batch_size, num_joints)
-
-        # total_loss = heatmap_loss+center_loss+0.1*regs_loss+offset_loss
-        # print(heatmap_loss,center_loss,regs_loss,offset_loss)
-        # b
-
-        """
+            # total_loss = heatmap_loss+center_loss+0.1*regs_loss+offset_loss
+            # print(heatmap_loss,center_loss,regs_loss,offset_loss)
+            # b
         
-        """
-        # boneloss = self.boneLoss(output[3], offsets, 
-        #                     cx0, cy0,regs,
-        #                     kps_mask,batch_size, num_joints)
-
+            """
+            
+            """
+            # boneloss = self.boneLoss(output[3], offsets, 
+            #                     cx0, cy0,regs,
+            #                     kps_mask,batch_size, num_joints)
+        heatmap_loss = np.mean(heatmap_loss_all)
+        bone_loss = np.mean(bone_loss_all)
+        center_loss = np.mean(center_loss_all)
+        regs_loss = np.mean(regs_loss_all)
+        offset_loss = np.mean(offset_loss_all)
         return [heatmap_loss, bone_loss, center_loss, regs_loss, offset_loss]
 
 #

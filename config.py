@@ -17,6 +17,7 @@ cfg = {
     "num_workers": 4,
     "random_seed": 42,
     "cfg_verbose": True,
+    'architecture': 'spiking', # 'spiking', 'mobilenet2'
     "save_dir": home + "outputs/",
     # "num_classes": 17,
     "width_mult": 1.0,

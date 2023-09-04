@@ -29,6 +29,7 @@ class Task():
         self.init_epoch = 0
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")  # edit for Franklin
         self.model = model.to(self.device)
+        self.arch = cfg['architecture']
 
         ############################################################
         # loss
@@ -534,6 +535,15 @@ class Task():
 
             # if '000000242610_0' not in img_names[0]:
             #     continue
+            # print("Training started")
+            # print(batch_idx)
+            imgs = imgs[None]
+            # labels = labels[None]
+            if self.arch == 'spiking':
+                # print("original shape:", imgs.shape)
+                imgs = np.transpose(imgs, axes=[2, 1, 0, 3, 4])
+                # print("Final shape:", imgs.shape)
+                labels = np.transpose(labels, axes=[1,0,2,3,4])
 
             labels = labels.to(self.device)
             imgs = imgs.to(self.device)
@@ -562,9 +572,9 @@ class Task():
 
             ### evaluate
 
-            pre = movenetDecode(output, kps_mask, mode='output', num_joints=self.cfg["num_classes"])
+            pre = movenetDecode(output[-4:], kps_mask, mode='output', num_joints=self.cfg["num_classes"])
 
-            gt = movenetDecode(labels, kps_mask, mode='label', num_joints=self.cfg["num_classes"])
+            gt = movenetDecode(torch.squeeze(labels[-1,:],0), kps_mask, mode='label', num_joints=self.cfg["num_classes"])
 
             # hm = cv2.resize(np.sum(labels[0,:7,:,:].cpu().detach().numpy(),axis=0),(192,192))*255
             # cv2.imwrite(os.path.join("output/show_img",os.path.basename(img_names[0])[:-4]+"_gt.jpg"),hm)

@@ -24,13 +24,18 @@ def main(cfg):
             cfg_temp = json.load(file)
         update_tuner_cfg(cfg,cfg_temp)
     cfg["ckpt"] = f'{cfg["save_dir"]}/{cfg["label"]}/newest.json'
-    # model = MoveNet(num_classes=cfg["num_classes"],
-    model = Movenet_stencil(num_classes=cfg["num_classes"],
-                    width_mult=cfg["width_mult"],
-                    mode='train')
     data = Data(cfg)
-    # train_loader, val_loader = data.getTrainValDataloader()
-    train_loader, val_loader = data.getTrainValDataloader_spike()
+
+
+    if cfg['architecture'] == 'mobilenet2':
+        model = MoveNet(num_classes=cfg["num_classes"], width_mult=cfg["width_mult"], mode='train')
+        train_loader, val_loader = data.getTrainValDataloader()
+    elif cfg['architecture'] == 'spiking':
+        model = Movenet_stencil(num_classes=cfg["num_classes"], width_mult=cfg["width_mult"], mode='train')
+        train_loader, val_loader = data.getTrainValDataloader_spike()
+    else:
+        print("Model architecture name invalid. please check options in the config file and retry.")
+
 
     run_task = Task(cfg, model)
     # run_task.modelLoad(model_path=cfg["ckpt"])

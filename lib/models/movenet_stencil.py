@@ -376,7 +376,6 @@ class MoveNet(nn.Module):
 
 
 
-
 if __name__ == "__main__":
     from torchsummary import summary
 
