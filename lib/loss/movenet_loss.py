@@ -314,19 +314,20 @@ class MovenetLoss(torch.nn.Module):
         
         batch_size = output_all[0].size(0)
         num_joints = output_all[0].size(1)
-        timesteps = len(output_all)/4
+        
+        timesteps = int(len(output_all)/4)
 
-        heatmap_loss_all = np.zeros([timesteps])
-        bone_loss_all = np.zeros([timesteps])
-        center_loss_all = np.zeros([timesteps])
-        regs_loss_all = np.zeros([timesteps])
-        offset_loss_all = np.zeros([timesteps])
+        heatmap_loss_all = torch.zeros([timesteps])
+        bone_loss_all = torch.zeros([timesteps])
+        center_loss_all = torch.zeros([timesteps])
+        regs_loss_all = torch.zeros([timesteps])
+        offset_loss_all = torch.zeros([timesteps])
 
         # print("output: ", [x.shape for x in output])
         # [64, 7, 48, 48] [64, 1, 48, 48] [64, 14, 48, 48] [64, 14, 48, 48]
         # print("target: ", [x.shape for x in target])#[64, 36, 48, 48]
         # print(weights.shape)# [14,]
-        for tau in timesteps:
+        for tau in range(timesteps):
             heatmaps = target[tau, :, :n_classes, :, :]
             centers = target[tau, :, n_classes:n_classes+1, :, :]
             regs = target[tau, :, n_classes+1:(n_classes*3)+1, :, :]
@@ -387,11 +388,11 @@ class MovenetLoss(torch.nn.Module):
             # boneloss = self.boneLoss(output[3], offsets, 
             #                     cx0, cy0,regs,
             #                     kps_mask,batch_size, num_joints)
-        heatmap_loss = np.mean(heatmap_loss_all)
-        bone_loss = np.mean(bone_loss_all)
-        center_loss = np.mean(center_loss_all)
-        regs_loss = np.mean(regs_loss_all)
-        offset_loss = np.mean(offset_loss_all)
+        heatmap_loss = torch.mean(heatmap_loss_all)
+        bone_loss = torch.mean(bone_loss_all)
+        center_loss = torch.mean(center_loss_all)
+        regs_loss = torch.mean(regs_loss_all)
+        offset_loss = torch.mean(offset_loss_all)
         return [heatmap_loss, bone_loss, center_loss, regs_loss, offset_loss]
 
 #

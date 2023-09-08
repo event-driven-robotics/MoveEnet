@@ -574,7 +574,7 @@ class Task():
 
             pre = movenetDecode(output[-4:], kps_mask, mode='output', num_joints=self.cfg["num_classes"])
 
-            gt = movenetDecode(torch.squeeze(labels[-1,:],0), kps_mask, mode='label', num_joints=self.cfg["num_classes"])
+            gt = movenetDecode(labels[-1,:], kps_mask, mode='label', num_joints=self.cfg["num_classes"])
 
             # hm = cv2.resize(np.sum(labels[0,:7,:,:].cpu().detach().numpy(),axis=0),(192,192))*255
             # cv2.imwrite(os.path.join("output/show_img",os.path.basename(img_names[0])[:-4]+"_gt.jpg"),hm)
@@ -654,6 +654,14 @@ class Task():
         with torch.no_grad():
             for batch_idx, (imgs, labels, kps_mask, img_names, torso_diameter, head_size_norm, _, _) in enumerate(
                     val_loader):
+                imgs = imgs[None]
+                # labels = labels[None]
+                if self.arch == 'spiking':
+                    # print("original shape:", imgs.shape)
+                    imgs = np.transpose(imgs, axes=[2, 1, 0, 3, 4])
+                    # print("Final shape:", imgs.shape)
+                    labels = np.transpose(labels, axes=[1,0,2,3,4])
+
                 labels = labels.to(self.device)
                 imgs = imgs.to(self.device)
                 kps_mask = kps_mask.to(self.device)
@@ -675,7 +683,7 @@ class Task():
                 #                 heatmap2locate(labels[:,:7,:,:].detach().cpu().numpy()))
                 pre = movenetDecode(output, kps_mask, mode='output', num_joints=self.cfg["num_classes"])
 
-                gt = movenetDecode(labels, kps_mask, mode='label', num_joints=self.cfg["num_classes"])
+                gt = movenetDecode(labels[-1,:], kps_mask, mode='label', num_joints=self.cfg["num_classes"])
 
                 # acc = pckh(pre, gt)
                 if self.cfg['dataset'] in ['coco', 'mpii']:
