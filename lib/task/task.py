@@ -584,9 +584,9 @@ class Task():
             # acc = myAcc(pre, gt)
 
             if self.cfg['dataset'] in ['coco', 'mpii']:
-                pck_acc = pck(pre, gt, head_size_norm, num_classes=self.cfg["num_classes"], mode='head')
+                pck_acc = pck(pre, gt, head_size_norm[-1], num_classes=self.cfg["num_classes"], mode='head')
             else:
-                pck_acc = pck(pre, gt, torso_diameter, num_classes=self.cfg["num_classes"], mode='torso')
+                pck_acc = pck(pre, gt, torso_diameter[-1], num_classes=self.cfg["num_classes"], mode='torso')
 
             # right_count += pck
             # total_count += labels.shape[0]
