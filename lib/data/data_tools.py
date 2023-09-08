@@ -20,6 +20,7 @@ import h5py
 from lib.data.data_augment import DataAug
 from lib.utils.utils import maxPoint, extract_keypoints
 
+dev = True
 
 def getFileNames(file_dir, tail_list=['.png', '.jpg', '.JPG', '.PNG']):
     L = []
@@ -337,11 +338,14 @@ def mask_lower_body(kps_mask):
 
 
 def resize_event_res(data, img_initial, img_final, ts_events):
-    frame = np.zeros([len(ts_events),img_final, img_final])
+    frame = np.zeros([len(ts_events),img_final, img_final],dtype=np.float32)
     count = 0
     for i in range(len(data['ts'])):
         if data['pol'][i]>ts_events[count]:
             count=+1
+        if dev:
+            if count>100:
+                return frame
         data['x'][i] = int(data['x'][i] / img_initial[1] * img_final)
         data['y'][i] = int(data['y'][i] / img_initial[0] * img_final)
         data['x'][data['x']>191]=191
@@ -644,6 +648,7 @@ class TensorDatasetSpike(Dataset):
             # head_size = get_headsize(head_size_scaled, self.img_size)
             torso_diameter[i] = get_torso_diameter(keypoints_allsamples[i, :])
         imgs = resize_event_res(container, image_size_original, self.img_size, ts_events)
+        # print("imgs datatype:", imgs.dtype)
 
         # Testing
         # for i in range(keypoints_allsamples.shape[0]):
