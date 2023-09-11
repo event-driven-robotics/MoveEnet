@@ -584,9 +584,9 @@ class Task():
             # acc = myAcc(pre, gt)
 
             if self.cfg['dataset'] in ['coco', 'mpii']:
-                pck_acc = pck(pre, gt, head_size_norm[-1], num_classes=self.cfg["num_classes"], mode='head')
+                pck_acc = pck(pre, gt, head_size_norm[:,-1], num_classes=self.cfg["num_classes"], mode='head')
             else:
-                pck_acc = pck(pre, gt, torso_diameter[-1], num_classes=self.cfg["num_classes"], mode='torso')
+                pck_acc = pck(pre, gt, torso_diameter[:,-1], num_classes=self.cfg["num_classes"], mode='torso')
 
             # right_count += pck
             # total_count += labels.shape[0]
@@ -681,15 +681,15 @@ class Task():
                 ### evaluate
                 # acc1 = myAcc(heatmap2locate(output[0].detach().cpu().numpy()), 
                 #                 heatmap2locate(labels[:,:7,:,:].detach().cpu().numpy()))
-                pre = movenetDecode(output, kps_mask, mode='output', num_joints=self.cfg["num_classes"])
+                pre = movenetDecode(output[-4:], kps_mask, mode='output', num_joints=self.cfg["num_classes"])
 
                 gt = movenetDecode(labels[-1,:], kps_mask, mode='label', num_joints=self.cfg["num_classes"])
 
                 # acc = pckh(pre, gt)
                 if self.cfg['dataset'] in ['coco', 'mpii']:
-                    pck_acc = pck(pre, gt, head_size_norm, num_classes=self.cfg["num_classes"], mode='head')
+                    pck_acc = pck(pre, gt, head_size_norm[:,-1], num_classes=self.cfg["num_classes"], mode='head')
                 else:
-                    pck_acc = pck(pre, gt, torso_diameter, num_classes=self.cfg["num_classes"], mode='torso')
+                    pck_acc = pck(pre, gt, torso_diameter[:,-1], num_classes=self.cfg["num_classes"], mode='torso')
                 # right_count += pck
                 # total_count += labels.shape[0]
                 correct_kps += pck_acc["total_correct"]
@@ -727,7 +727,7 @@ class Task():
                        total_loss_sum, acc_joint_mean_intermediate, epoch + 1, label="Val")
         if acc_joint_mean_intermediate > self.best_val_accuracy:
             self.best_val_accuracy = acc_joint_mean_intermediate
-
+        
         if 'default' in self.cfg['scheduler']:
             self.scheduler.step(np.mean(right_count / total_count))
         else:
