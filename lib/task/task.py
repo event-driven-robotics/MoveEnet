@@ -15,7 +15,8 @@ import csv
 # import torch.nn.functional as F
 from torch.utils.tensorboard import SummaryWriter
 
-from lib.task.task_tools import getSchedu, getOptimizer, movenetDecode, clipGradient, restore_sizes,superimpose
+from lib.task.task_tools import getSchedu, getOptimizer, movenetDecode, clipGradient, restore_sizes, superimpose
+from lib.task.task_tools import get_gpu_memory
 from lib.loss.movenet_loss import MovenetLoss
 from lib.utils.utils import printDash, ensure_loc
 from lib.visualization.visualization import superimpose_pose, add_skeleton, movenet_to_hpecore
@@ -529,7 +530,7 @@ class Task():
         acc_joint_mean_intermediate = 0
         right_count = np.array([0] * self.cfg['batch_size'], dtype=np.float64)
         total_count = 0
-
+        free_memory_list_end = []
         for batch_idx, (imgs, labels, kps_mask, img_names, torso_diameter, head_size_norm, _, _) in enumerate(
                 train_loader):
 
@@ -594,6 +595,7 @@ class Task():
             total_kps += pck_acc["total_keypoints"]
             joint_correct += pck_acc["correct_per_joint"]
             joint_total += pck_acc["anno_keypoints_per_joint"]
+            print('Batch ID:', batch_idx, '. Free memory:', get_gpu_memory('free'), '. Used memory:', get_gpu_memory('used'))
 
             if batch_idx % self.cfg['log_interval'] == 0:
                 acc_joint_mean_intermediate = np.mean(joint_correct / joint_total)
@@ -616,6 +618,8 @@ class Task():
                                               offset_loss.item(),
                                               acc_joint_mean_intermediate),
                       end='', flush=True)
+                free_memory_list_end.append(get_gpu_memory('free'))
+                print("Free memory per log interval", free_memory_list_end)
             # break
         total_loss_sum = heatmap_loss_sum + center_loss_sum + regs_loss_sum + offset_loss_sum + bone_loss_sum
 

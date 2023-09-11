@@ -6,6 +6,7 @@ https://github.com/fire717
 import torch.optim as optim
 import numpy as np
 import cv2
+import subprocess
 
 from lib.utils.utils import maxPoint, extract_keypoints
 
@@ -369,3 +370,9 @@ def superimpose(base_image,heatmap):
     heatmap= cv2.applyColorMap(np.uint8(255 * heatmap), cv2.COLORMAP_JET)
     fin = cv2.addWeighted(heatmap, 0.5, base_image, 0.5, 0)
     return fin
+
+def get_gpu_memory(type='free'):
+    command = f"nvidia-smi --query-gpu=memory.{type} --format=csv"
+    memory_free_info = subprocess.check_output(command.split()).decode('ascii').split('\n')[:-1][1:]
+    memory_free_values = [int(x.split()[0]) for i, x in enumerate(memory_free_info)]
+    return memory_free_values
