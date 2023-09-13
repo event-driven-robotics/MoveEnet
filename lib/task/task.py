@@ -29,10 +29,10 @@ class Task():
         self.cfg = cfg
         self.init_epoch = 0
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")  # edit for Franklin
-        if torch.cuda.device_count() > 1:
-            print("Let's use", torch.cuda.device_count(), "GPUs!")
-            # dim = 0 [30, xxx] -> [10, ...], [10, ...], [10, ...] on 3 GPUs
-            model = torch.nn.DataParallel(model)
+        # if torch.cuda.device_count() > 1:
+        #     print("Let's use", torch.cuda.device_count(), "GPUs!")
+        #     # dim = 0 [30, xxx] -> [10, ...], [10, ...], [10, ...] on 3 GPUs
+        #     model = torch.nn.DataParallel(model)
         self.model = model.to(self.device)
         self.arch = cfg['architecture']
 
