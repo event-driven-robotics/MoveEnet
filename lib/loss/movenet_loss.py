@@ -304,7 +304,7 @@ class MovenetLoss(torch.nn.Module):
         # mask = torch.where(torch.gt(max_v,th), mask1, mask0)
         # print(mask)
         # b
-        y = max_id // w
+        y = torch.div(max_id, w, rounding_mode='trunc')
         x = max_id % w
 
         return x, y

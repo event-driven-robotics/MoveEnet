@@ -599,7 +599,6 @@ class Task():
             total_kps += pck_acc["total_keypoints"]
             joint_correct += pck_acc["correct_per_joint"]
             joint_total += pck_acc["anno_keypoints_per_joint"]
-            print('Batch ID:', batch_idx, '. Free memory:', get_gpu_memory('free'), '. Used memory:', get_gpu_memory('used'))
 
             if batch_idx % self.cfg['log_interval'] == 0:
                 acc_joint_mean_intermediate = np.mean(joint_correct / joint_total)
@@ -623,6 +622,9 @@ class Task():
                                               acc_joint_mean_intermediate),
                       end='', flush=True)
                 free_memory_list_end.append(get_gpu_memory('free'))
+                print('Batch ID:', batch_idx, '. Free memory:', get_gpu_memory('free'), '. Used memory:',
+                      get_gpu_memory('used'))
+
                 print("Free memory per log interval", free_memory_list_end)
             # break
         total_loss_sum = heatmap_loss_sum + center_loss_sum + regs_loss_sum + offset_loss_sum + bone_loss_sum
