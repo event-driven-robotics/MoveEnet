@@ -626,7 +626,8 @@ class Task():
                       get_gpu_memory('used'))
 
                 print("Free memory per log interval", free_memory_list_end)
-            # break
+            torch.cuda.empty_cache()
+
         total_loss_sum = heatmap_loss_sum + center_loss_sum + regs_loss_sum + offset_loss_sum + bone_loss_sum
 
         # Tensorboard additions

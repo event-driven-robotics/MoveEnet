@@ -338,23 +338,50 @@ def mask_lower_body(kps_mask):
 
 
 def resize_event_res(data, img_initial, img_final, ts_events):
-    frame = np.zeros([len(ts_events),img_final, img_final],dtype=np.float32)
+    # frame = np.zeros([len(ts_events),img_final, img_final],dtype=np.float32)
+    # count = 0
+    # for i in range(len(data['ts'])):
+    #     if data['pol'][i]>ts_events[count]:
+    #         count=+1
+    #     if dev:
+    #         if count>100:
+    #             return frame
+    #     data['x'][i] = int(data['x'][i] / img_initial[1] * img_final)
+    #     data['y'][i] = int(data['y'][i] / img_initial[0] * img_final)
+    #     data['x'][data['x']>191]=191
+    #     data['y'][data['y']>191]=191
+    #     # print(count, data['x'][i],data['y'][i])
+    #     if data['pol'][i]:
+    #         frame[count, int(data['x'][i]),int(data['y'][i])] =+1
+    #     else:
+    #         frame[count, int(data['x'][i]),int(data['y'][i])] =-1
+    # return frame
+
+    # def optimize_code(data, ts_events, img_initial, img_final):
+    num_ts_events = len(ts_events)
+    num_data_ts = len(data['ts'])
+
+    frame = np.zeros([num_ts_events, img_final, img_final], dtype=np.float32)
+
     count = 0
-    for i in range(len(data['ts'])):
-        if data['pol'][i]>ts_events[count]:
-            count=+1
-        if dev:
-            if count>100:
-                return frame
-        data['x'][i] = int(data['x'][i] / img_initial[1] * img_final)
-        data['y'][i] = int(data['y'][i] / img_initial[0] * img_final)
-        data['x'][data['x']>191]=191
-        data['y'][data['y']>191]=191
-        # print(count, data['x'][i],data['y'][i])
+    x_scaled = (data['x'] / img_initial[1] * img_final).astype(int)
+    y_scaled = (data['y'] / img_initial[0] * img_final).astype(int)
+
+    x_scaled[x_scaled > 191] = 191
+    y_scaled[y_scaled > 191] = 191
+
+    for i in range(num_data_ts):
+        if data['pol'][i] > ts_events[count]:
+            count += 1
+
+        if dev and count > 100:
+            return frame
+
         if data['pol'][i]:
-            frame[count, int(data['x'][i]),int(data['y'][i])] =+1
+            frame[count, x_scaled[i], y_scaled[i]] += 1
         else:
-            frame[count, int(data['x'][i]),int(data['y'][i])] =-1
+            frame[count, x_scaled[i], y_scaled[i]] -= 1
+
     return frame
 
 
