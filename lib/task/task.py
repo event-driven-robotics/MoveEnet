@@ -14,6 +14,7 @@ import csv
 
 # import torch.nn.functional as F
 from torch.utils.tensorboard import SummaryWriter
+from lib import MoveNet, Movenet_stencil
 
 from lib.task.task_tools import getSchedu, getOptimizer, movenetDecode, clipGradient, restore_sizes, superimpose
 from lib.task.task_tools import get_gpu_memory
@@ -56,7 +57,10 @@ class Task():
 
         # tensorboard
         self.tb = SummaryWriter(comment=self.cfg['label'])
-        self.tb.add_graph(self.model, torch.randn(40, 1, 1, 192, 192).to(self.device))
+        if type(model) is MoveNet:
+            self.tb.add_graph(self.model, torch.randn(1, 3, 192, 192).to(self.device))
+        elif type(model) is Movenet_stencil:
+            self.tb.add_graph(self.model, torch.randn(40, 1, 1, 192, 192).to(self.device))
         # todo: find a way for backward compatibility with original moveEnet where images are 3D.
         self.tb.add_text("Hyperparameters: ", str(cfg))
         self.best_train_accuracy = 0
