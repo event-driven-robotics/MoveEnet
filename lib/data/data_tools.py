@@ -371,7 +371,7 @@ def resize_event_res(data, img_initial, img_final, ts_events):
     y_scaled[y_scaled > 191] = 191
 
     for i in range(num_data_ts):
-        if data['pol'][i] > ts_events[count]:
+        if data['ts'][i] > ts_events[count]:
             count += 1
 
         if dev and count > 100:
