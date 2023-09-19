@@ -33,7 +33,11 @@ class Task():
         if torch.cuda.device_count() > 1:
             print("Let's use", torch.cuda.device_count(), "GPUs!")
             # dim = 0 [30, xxx] -> [10, ...], [10, ...], [10, ...] on 3 GPUs
-            model = torch.nn.DataParallel(model)
+            if type(model) is MoveNet:
+                model = torch.nn.DataParallel(model)
+            elif type(model) is Movenet_stencil:
+                model = torch.nn.DataParallel(model,dim=1)
+
         self.model = model.to(self.device)
         self.arch = cfg['architecture']
 

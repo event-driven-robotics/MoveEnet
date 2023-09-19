@@ -20,7 +20,7 @@ import h5py
 from lib.data.data_augment import DataAug
 from lib.utils.utils import maxPoint, extract_keypoints
 
-dev = True
+dev = False
 
 def getFileNames(file_dir, tail_list=['.png', '.jpg', '.JPG', '.PNG']):
     L = []
