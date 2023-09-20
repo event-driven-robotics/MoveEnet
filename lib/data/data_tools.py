@@ -369,18 +369,21 @@ def resize_event_res(data, img_initial, img_final, ts_events):
 
     x_scaled[x_scaled > 191] = 191
     y_scaled[y_scaled > 191] = 191
+    data['pol'] = (data['pol']*2)-1
+
+    if dev:
+        num_data_ts = 100
 
     for i in range(num_data_ts):
         if data['ts'][i] > ts_events[count]:
             count += 1
 
-        if dev and count > 100:
-            return frame
+        frame[count, x_scaled[i], y_scaled[i]] += data['pol'][i]
 
-        if data['pol'][i]:
-            frame[count, x_scaled[i], y_scaled[i]] += 1
-        else:
-            frame[count, x_scaled[i], y_scaled[i]] -= 1
+        # if data['pol'][i]:
+        #     frame[count, x_scaled[i], y_scaled[i]] += 1
+        # else:
+        #     frame[count, x_scaled[i], y_scaled[i]] -= 1
 
     return frame
 
@@ -593,8 +596,6 @@ class TensorDatasetSpike(Dataset):
         # label_str_list = label_str.strip().split(',')
         # [name,h,w,keypoints...]
 
-        dev = False
-
         file_path = os.path.join(self.file_dir, item["file_name"])
         hf = h5py.File(file_path, 'r')
         data = np.array(hf["events"][:])
@@ -674,7 +675,7 @@ class TensorDatasetSpike(Dataset):
             # print(labels.shape)
             # head_size = get_headsize(head_size_scaled, self.img_size)
             torso_diameter[i] = get_torso_diameter(keypoints_allsamples[i, :])
-        imgs = resize_event_res(container, image_size_original, self.img_size, ts_events)
+        img = resize_event_res(container, image_size_original, self.img_size, ts_events)
         # print("imgs datatype:", imgs.dtype)
 
         # Testing
@@ -687,8 +688,8 @@ class TensorDatasetSpike(Dataset):
         #         # frame = cv2.circle(frame, [keypoint[i, 0] * 192, keypoint[i, 1] * 192], 3, (0, 0, 255), 3)
         #     cv2.imshow('', frame)
         #     cv2.waitKey(50)
-
-        return imgs, labels_all, kps_mask, file_path, torso_diameter, head_size_scaled, ts_events, 0
+        del container
+        return img, labels_all, kps_mask, file_path, torso_diameter, head_size_scaled, 0, 0
 
     def __len__(self):
         return len(self.data_labels)
