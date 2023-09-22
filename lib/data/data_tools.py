@@ -569,11 +569,30 @@ class TensorDatasetTest(Dataset):
     def __len__(self):
         return len(self.data_labels)
 
+def convert_data_to_np(data_in):
+    data_out = []
+    for sample in data_in:
+
+        dt = np.dtype([('file_name', 'S', len(sample['file_name'])),
+                       ('ts', np.float64, len(sample['ts'])),
+                       ('keypoints', np.float64, len(sample['keypoints'])),
+                       ('center', np.int_, len(sample['center'])),
+                       ('image_size', 'i8', len(sample['image_size']))])
+
+        x = sample['image_size'][0]
+        y = sample['image_size'][1]
+        sample_np = np.array([(sample['file_name'], sample['ts'], sample['keypoints'], sample['center'], [x, y])],
+                             dtype=dt)
+        data_out.append(sample_np)
+        if dev:
+            print(sample_np["file_name"])
+    return data_out
 
 ######## dataloader
 class TensorDatasetSpike(Dataset):
     def __init__(self, data_labels, file_dir, img_size, data_aug=None, num_classes=13, keypoint_subset='all'):
-        self.data_labels = data_labels
+        data_labels_np = convert_data_to_np(data_labels)
+        self.data_labels = data_labels_np
         self.file_dir = file_dir
         self.data_aug = data_aug
         self.img_size = img_size
@@ -595,8 +614,8 @@ class TensorDatasetSpike(Dataset):
         """
         # label_str_list = label_str.strip().split(',')
         # [name,h,w,keypoints...]
-
-        file_path = os.path.join(self.file_dir, item["file_name"])
+        file_name = str(item['file_name'][0], encoding='utf-8')
+        file_path = os.path.join(self.file_dir, file_name)
         hf = h5py.File(file_path, 'r')
         data = np.array(hf["events"][:])
         container = {}
@@ -610,17 +629,13 @@ class TensorDatasetSpike(Dataset):
         container['y'] = data[:, 2]
         container['pol'] = data[:, 3].astype(bool)
 
-        item['other_keypoints'] = [[] for i in range(self.num_classes)]
-        item['other_centers'] = []
+        other_keypoints = [[] for i in range(self.num_classes)]
+        other_centers = []
 
-        head_size = item.get("head_size", 0)
-        head_size_scaled = item.get("head_size_scaled", 0)
-        keypoints = item.get("keypoints", [[] for i in range(self.num_classes)])
-        center = item.get("center", [])
-        image_size_original = item.get("image_size", [])
-        other_centers = item.get("other_centers", [])
-        other_keypoints = item.get("other_keypoints", [[] for i in range(self.num_classes)])
-        skeleton_base_ts = item.get('ts', [])
+        keypoints = item['keypoints'][0]
+        center = item['center'][0]
+        image_size_original = item['image_size'][0]
+        skeleton_base_ts = item['ts'][0]
 
         ts_events = np.linspace(container['ts'][0], container['ts'][-1], num=41, endpoint=True)
         ts_events = ts_events[1:]
@@ -631,9 +646,6 @@ class TensorDatasetSpike(Dataset):
         # print('keypoints.shape[1]', keypoints.shape[1])
         # print('self.num_classes * 3', self.num_classes * 3)
         assert keypoints.shape[1] == self.num_classes * 3
-
-        if len(other_keypoints) == 0:
-            other_keypoints = [[] for i in range(self.num_classes)]
 
         kps_mask = np.ones(np.size(keypoints[0, :]) // 3)
         for i in range(len(keypoints) // 3):
@@ -689,7 +701,7 @@ class TensorDatasetSpike(Dataset):
         #     cv2.imshow('', frame)
         #     cv2.waitKey(50)
         del container
-        return img, labels_all, kps_mask, file_path, torso_diameter, head_size_scaled, 0, 0
+        return img, labels_all, kps_mask, file_path, torso_diameter, 0, 0, 0
 
     def __len__(self):
         return len(self.data_labels)
