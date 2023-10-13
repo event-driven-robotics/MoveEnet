@@ -15,7 +15,7 @@ import csv
 # import torch.nn.functional as F
 from torch.utils.tensorboard import SummaryWriter
 
-from lib.task.task_tools import getSchedu, getOptimizer, movenetDecode, clipGradient, restore_sizes,superimpose
+from lib.task.task_tools import getSchedu, getOptimizer, movenetDecode, clipGradient, restore_sizes, superimpose
 from lib.loss.movenet_loss import MovenetLoss
 from lib.utils.utils import printDash, ensure_loc
 from lib.visualization.visualization import superimpose_pose, add_skeleton, movenet_to_hpecore
@@ -73,7 +73,7 @@ class Task():
             os.makedirs(save_dir)
 
         self.model.eval()
-        correct = 0
+        count = 0
         size = self.cfg["img_size"]
         with torch.no_grad():
 
@@ -96,8 +96,9 @@ class Task():
                 img = np.transpose(img[0].cpu().numpy(), axes=[1, 2, 0])
                 img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
                 h, w = img.shape[:2]
-                img = img*3
-                cv2.imwrite(os.path.join(save_dir, basename[:-4] + "_img.jpg"), img)
+                img = img * 3
+                if save_dir is not None:
+                    cv2.imwrite(os.path.join(save_dir, basename[:-4] + "_img.jpg"), img)
 
                 # for i in range(len(pre[0]) // 2):
                 #     x = int(pre[0][i * 2] * w)
@@ -105,13 +106,15 @@ class Task():
                 #     cv2.circle(img, (x, y), 3, (255, 0, 0), 2)
                 img = add_skeleton(img, pre, (0, 0, 255), lines=1)
 
-                cv2.imwrite(os.path.join(save_dir, basename), img)
-
-                ## debug
-                heatmaps = output[0].cpu().numpy()[0]
-                centers = output[1].cpu().numpy()[0]
-                regs = output[2].cpu().numpy()[0]
-                offsets = output[3].cpu().numpy()[0]
+                if save_dir is not None:
+                    cv2.imwrite(os.path.join(save_dir, basename), img)
+                print(count)
+                count += 1
+                # ## debug
+                # heatmaps = output[0].cpu().numpy()[0]
+                # centers = output[1].cpu().numpy()[0]
+                # regs = output[2].cpu().numpy()[0]
+                # offsets = output[3].cpu().numpy()[0]
 
                 # print(centers.shape)
 

@@ -34,7 +34,7 @@ cfg = {
     'th': 20,  # percentage of headsize
     'training_mode': 'continuous', # 'one-off'
     'set_epoch': None,
-    'default_ckpt': '/home/ggoyal/data/models/mpii_pretrained.pth',
+    'default_ckpt': '/home/ggoyal/data/models/e97_valacc0.81209.pth',
     'keypoint_subset': 'all', #  'all' 'upper_body'
     # 'from_scratch': True,
 
@@ -102,12 +102,12 @@ if dataset == 'h36m':
 
 if dataset == 'h36m_cropped':
     cfg["num_classes"] = 13
-    cfg["img_path"] = home + "images/h36m_EROS"
+    cfg["img_path"] = home + "/tester/h36m_EROS"
     cfg["separated_data"] = True
-    cfg["train_label_path"] = home + 'train_subject.json'
-    cfg["val_label_path"] = home + 'val_subject.json'
+    cfg["train_label_path"] = home + '/tester/h36m_anno/poses.json'
+    cfg["val_label_path"] = home + '/tester/h36m_anno/poses.json'
 
-    cfg["test_img_path"] = home + ''
+    cfg["test_img_path"] ='/home/ggoyal/data/cvpr_experiments/eros/cam4_S9_Directions'
     cfg["predict_output_path"] = home + "predictions/"
     cfg["exam_label_path"] = home + ''
     cfg["exam_img_path"] = home + ''
@@ -134,7 +134,8 @@ if dataset == 'DHP19':
 # cfg['newest_ckpt'] = "/home/ggoyal/data/mpii/output/hypertune_0/best.pth"  # mpii original EROS
 # cfg['newest_ckpt'] = "/home/ggoyal/data/mpii2/output/best.pth"  # mpii cropped EROS
 # cfg['newest_ckpt'] = "/home/ggoyal/data/h36m/output/h36m_subject_sub/best.pth"  # h36m subject fromscratch
-cfg['newest_ckpt'] = "/home/ggoyal/data/h36m/output/h36m_finetune_sub/best.pth"  # h36m subject fromscratch
+# cfg['newest_ckpt'] = "/home/ggoyal/data/h36m/output/h36m_finetune_sub/best.pth"  # h36m subject fromscratch
+cfg['newest_ckpt'] = "/home/ggoyal/code/hpe-core/example/movenet/models/e97_valacc0.81209.pth"  # Final HPE model
 
 # cfg["exam_output_path"] = home + "/exams_and_evals/exam_on-mpii1/"
 # cfg["exam_output_path"] = home + "/exams_and_evals/exam_on-mpii-cropped/"

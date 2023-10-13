@@ -4,6 +4,9 @@ https://github.com/fire717
 """
 import torch
 import torch.nn as nn
+import lightning.pytorch as pl
+from lib.task.task_tools import clipGradient, getOptimizer
+from lib.loss.movenet_loss import MovenetLoss
 import math
 
 
@@ -75,7 +78,7 @@ def upsample(inp, oup, scale=2):
                 nn.Upsample(scale_factor=scale, mode='bilinear', align_corners=False))
 
 
-class InvertedResidual(nn.Module):
+class InvertedResidual(pl.LightningModule):
     def __init__(self, inp, oup, stride, expand_ratio, n):
         super(InvertedResidual, self).__init__()
         assert stride in [1, 2]
@@ -141,7 +144,7 @@ class InvertedResidual(nn.Module):
 
 
 
-class Backbone(nn.Module):
+class Backbone(pl.LightningModule):
     def __init__(self):
         super(Backbone, self).__init__()
         #mobilenet v2
@@ -211,7 +214,7 @@ class Backbone(nn.Module):
 
 
 
-class Header(nn.Module):
+class Header(pl.LightningModule):
     def __init__(self, num_classes, mode='train'):
         super(Header, self).__init__()
 
@@ -319,17 +322,19 @@ class Header(nn.Module):
         return res
 
 
-class MoveNet(nn.Module):
-    def __init__(self, num_classes=17, width_mult=1.,mode='train'):
+class MoveNet(pl.LightningModule):
+    def __init__(self, num_classes=17, width_mult=1.,mode='train',cfg=None):
         super(MoveNet, self).__init__()
 
         self.backbone = Backbone()
 
         self.header = Header(num_classes, mode)
-        
+        self.loss_func = MovenetLoss(cfg)
+        self.cfg = cfg
 
         self._initialize_weights()
-
+        self.w_heatmap, self.w_bone, self.w_center, self.w_reg, self.w_offset = cfg['w_heatmap'], cfg['w_bone'], \
+            cfg['w_center'], cfg['w_reg'], cfg['w_offset']
 
     def forward(self, x):
         x = self.backbone(x) # n,24,48,48
@@ -337,8 +342,30 @@ class MoveNet(nn.Module):
 
         x = self.header(x)
         # print([x0.shape for x0 in x])
-
         return x
+
+    def training_step(self, batch, batch_idx):
+        imgs, labels, kps_mask, img_names, torso_diameter, head_size_norm, _, _ = batch
+        output = self(imgs)
+        heatmap_loss, bone_loss, center_loss, regs_loss, offset_loss = self.loss_func(output, labels, kps_mask,
+                    self.cfg['num_classes'])
+        total_loss = (self.w_heatmap * heatmap_loss) + (self.w_bone * bone_loss) + (self.w_center * center_loss) \
+                    + (self.w_reg * regs_loss) + (self.w_offset * offset_loss)
+
+        return total_loss
+
+
+
+    def configure_optimizers(self):
+
+        optimizer = getOptimizer(self.cfg['optimizer'],
+                     self,
+                     self.cfg['learning_rate'],
+                     self.cfg['weight_decay'])
+        if self.cfg['clip_gradient']:
+            clipGradient(optimizer, self.cfg['clip_gradient'])
+        return optimizer
+        # return torch.optim.SGD(self.model.parameters(), lr=0.1)
 
 
     def _initialize_weights(self):
@@ -369,7 +396,7 @@ if __name__ == "__main__":
     dummy_input1 = torch.randn(1, 3, 192, 192).cuda()
     input_names = [ "input1"] #自己命名
     output_names = [ "output1" ]
-    
-    torch.onnx.export(model, dummy_input1, "pose.onnx", 
+
+    torch.onnx.export(model, dummy_input1, "pose.onnx",
         verbose=True, input_names=input_names, output_names=output_names,
         do_constant_folding=True,opset_version=11)

@@ -513,7 +513,7 @@ class TensorDatasetTest(Dataset):
         img = img.astype(np.float32)
         img = np.transpose(img, axes=[2, 0, 1])
 
-        return img, img_name
+        return img #, img_name
 
     def __len__(self):
         return len(self.data_labels)
