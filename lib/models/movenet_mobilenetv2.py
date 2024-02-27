@@ -347,6 +347,7 @@ class MoveNet(pl.LightningModule):
     def training_step(self, batch, batch_idx):
         imgs, labels, kps_mask, img_names, torso_diameter, head_size_norm, _, _ = batch
         output = self(imgs)
+        pre = movenetDecode(output, kps_mask, mode='output', num_joints=self.cfg["num_classes"])
         heatmap_loss, bone_loss, center_loss, regs_loss, offset_loss = self.loss_func(output, labels, kps_mask,
                     self.cfg['num_classes'])
         total_loss = (self.w_heatmap * heatmap_loss) + (self.w_bone * bone_loss) + (self.w_center * center_loss) \
