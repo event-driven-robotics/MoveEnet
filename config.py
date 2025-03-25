@@ -32,7 +32,7 @@ cfg = {
     'save_best_only': False,
     'pin_memory': True,
     'th': 20,  # percentage of headsize
-    'training_mode': 'continuous', # 'one-off'
+    'training_mode': 'one-off', # 'one-off', 'continuous'
     'set_epoch': None,
     'default_ckpt': '/home/ggoyal/data/models/mpii_pretrained.pth',
     'keypoint_subset': 'all', #  'all' 'upper_body'
