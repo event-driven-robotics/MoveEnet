@@ -5,11 +5,10 @@ https://github.com/fire717
 
 # dataset = "coco"
 # dataset = "mpii2"
-# dataset = 'h36m'
-dataset = 'h36m_cropped'
+dataset = 'h36m'
 # dataset = 'DHP19'
-home = "/home/ggoyal/data/" + dataset + "/"
-# home = "/work/ggoyal/Data/"+dataset+"/"
+home = "/home/usr/data/" + dataset + "/"
+# home = "/work/usr/Data/"+dataset+"/"
 
 cfg = {
     ##### Global Setting
@@ -34,7 +33,7 @@ cfg = {
     'th': 20,  # percentage of headsize
     'training_mode': 'one-off', # 'one-off', 'continuous'
     'set_epoch': None,
-    'default_ckpt': '/home/ggoyal/data/models/mpii_pretrained.pth',
+    'default_ckpt': '/home/usr/data/models/mpii_pretrained.pth',
     'keypoint_subset': 'all', #  'all' 'upper_body'
     # 'from_scratch': True,
 
@@ -131,12 +130,3 @@ if dataset == 'DHP19':
     cfg["eval_img_path"] = home + '/samples_for_pred/'
     cfg["eval_label_path"] = home + "/poses.json"
 
-# cfg['newest_ckpt'] = "/home/ggoyal/data/mpii/output/hypertune_0/best.pth"  # mpii original EROS
-# cfg['newest_ckpt'] = "/home/ggoyal/data/mpii2/output/best.pth"  # mpii cropped EROS
-# cfg['newest_ckpt'] = "/home/ggoyal/data/h36m/output/h36m_subject_sub/best.pth"  # h36m subject fromscratch
-cfg['newest_ckpt'] = "/home/ggoyal/data/h36m/output/h36m_finetune_sub/best.pth"  # h36m subject fromscratch
-
-# cfg["exam_output_path"] = home + "/exams_and_evals/exam_on-mpii1/"
-# cfg["exam_output_path"] = home + "/exams_and_evals/exam_on-mpii-cropped/"
-# cfg["exam_output_path"] = home + "/exams_and_evals/eval_on-h36m-scratch/"
-# cfg["exam_output_path"] = home + "/exams_and_evals/eval_on-h36m-finetuned/"

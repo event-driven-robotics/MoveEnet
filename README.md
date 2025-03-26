@@ -5,7 +5,7 @@
 ## Intro
 ![start](/data/imgs/moveEnet.gif)
 
-MoveEnet is an online event-driven Human Pose Estimation model. It is based on MoveNet architecture from google and since google did not release a trainign code, this repository is loosely based on training code from [movenet.pytorch](https://github.com/fire717/movenet.pytorch) repository.
+MoveEnet is an online event-driven Human Pose Estimation model. It is based on MoveNet architecture from google and since google did not release a training code, this repository was originally forked from [movenet.pytorch](https://github.com/fire717/movenet.pytorch) repository.
 
 If you use MoveEnet for your scientific publication, please cite:
 
@@ -19,19 +19,19 @@ If you use MoveEnet for your scientific publication, please cite:
     pages     = {4023-4032}
 }
 ```
-article: [MoveEnet: Online High-Frequency Human Pose Estimation With an Event Camera](https://github.com/user-attachments/files/17659249/MoveEnet-CVPR-WEBV2023.pdf)
+Article PDF file: [MoveEnet: Online High-Frequency Human Pose Estimation With an Event Camera](https://github.com/user-attachments/files/17659249/MoveEnet-CVPR-WEBV2023.pdf)
 
-also for the eH3.6m dataset:
+The eH3.6m dataset is available here:
 ```
 https://zenodo.org/record/7842598
 ```
-
+The primary python libraries needed are listed in ``requirements.txt``.
 
 ## How To Run
 
-1. Download the dataset mentioned above and install the [hpe-core](https://github.com/event-driven-robotics/hpe-core/) repository. Follow the steps laid out to export the training data for the [eh36m dataset](https://github.com/event-driven-robotics/hpe-core/tree/main/datasets/h36m), specifically run export_eros.py with the paths in your file system for the downloaded dataset. This will lead to creation of a folder of images, and an annotation file called "pose.json"
+1. Download the dataset mentioned above and install the [hpe-core](https://github.com/event-driven-robotics/hpe-core/) repository. Follow the steps laid out to export the training data for the [eh36m dataset](https://github.com/event-driven-robotics/hpe-core/tree/main/datasets/h36m), specifically run ``export_eros.py`` with the paths in your file system for the downloaded dataset. This will lead to creation of a folder of images, and an annotation file called ``pose.json``.
 
-2. Separate the annotation file to training and val. Ensure the path of the 'pose.py' is added to "scripts/data/split_trainval.py", then run the file using the following command:
+2. Separate the annotation file to training and val. Ensure the path to the ``pose.json`` is added to ``scripts/data/split_trainval.py``. Changes can be made in this file for specific separation of data between training and validations splits. Then run the file using the following command:
 
 ```
 python3 scripts/data/split_trainval.py
@@ -71,4 +71,8 @@ KEYPOINTS_MAP = {'head': 0, 'shoulder_right': 1, 'shoulder_left': 2, 'elbow_righ
 python train.py
 ```
 
-8. To predict results using a specific checkpoint, use files predict.py and evaluate.py. 
+8. To predict results using a specific checkpoint, use files `predict.py` and `evaluate.py`. To create a video from an input data, use the file `create_video.py`.
+
+# Notes
+- Any  contribution to make the code more usable would be appreciated. Feel free to fork and create merge request to contribute back.
+- For inference-only code, or for inference on camera directly, follow the directions on the [hpe-core repository](https://github.com/event-driven-robotics/hpe-core/tree/main/example/movenet).
